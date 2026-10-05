@@ -2,9 +2,8 @@
  * GET /api/world/snapshot/[year] — serve a precomputed historical snapshot.
  * year must be one of 2020|2022|2024|2026, anything else is 404.
  */
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
 
 const YEARS = new Set(['2020', '2022', '2024', '2026']);
 
@@ -16,8 +15,8 @@ export async function GET(
     return NextResponse.json({ error: 'unknown snapshot' }, { status: 404 });
   }
   try {
-    const raw = await readFile(join(process.cwd(), 'data', 'snapshots', `${params.year}.json`), 'utf-8');
-    return new NextResponse(raw, {
+    const world = await getDb().getSnapshot(params.year);
+    return new NextResponse(JSON.stringify(world), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

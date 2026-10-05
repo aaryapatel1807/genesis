@@ -1,14 +1,13 @@
 /**
  * GET /api/world — serve the precomputed universe (0 SerpApi cost).
  */
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const raw = await readFile(join(process.cwd(), 'data', 'world.json'), 'utf-8');
-    return new NextResponse(raw, {
+    const world = await getDb().getWorld();
+    return new NextResponse(JSON.stringify(world), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

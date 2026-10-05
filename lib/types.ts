@@ -99,3 +99,55 @@ export interface Connection {
   edge: GEdge;
   other: GNode;
 }
+
+// --- Database layer types ---------------------------------------------------
+// v1 is JSON files in data/ (lib/db/jsonAdapter.ts); v2 is Postgres
+// (lib/db/postgresAdapter.ts, db/schema.sql). Both expose the same DbAdapter
+// contract (lib/db/adapter.ts). These structural types are intentionally
+// self-contained so they don't create import cycles with lib/agents/*.
+
+/** Structurally compatible with Extraction from lib/agents/explorer. */
+export interface CachedExpansionEntity {
+  name: string;
+  type: NodeType;
+  description: string;
+}
+
+/** Structurally compatible with ExtractedRelation from lib/agents/explorer. */
+export interface CachedExpansionRelation {
+  source: string;
+  target: string;
+  relation: Relation;
+  evidence_snippet: string;
+}
+
+/** One cached node-expansion result, stored under its query sha256. */
+export interface CachedExpansion {
+  entities: CachedExpansionEntity[];
+  relations: CachedExpansionRelation[];
+  cached_at?: string;
+}
+
+/** One entry appended to the SerpApi credit ledger. */
+export interface CreditLogEntry {
+  at: string;
+  engine: string;
+  query_hash: string;
+  cached: boolean;
+}
+
+/** Aggregated credit state: plan limit, credits spent, full log. */
+export interface CreditLedger {
+  planLimit: number;
+  used: number;
+  log: CreditLogEntry[];
+}
+
+/** One simulation run recorded for audit/replay. */
+export interface SimulationLog {
+  at: string;
+  scenario: string;
+  affected: string[];
+  cascades: SimCascade[];
+  sessionId?: string;
+}

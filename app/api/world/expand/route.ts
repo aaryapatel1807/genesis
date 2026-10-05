@@ -4,9 +4,8 @@
  * Graceful degradation: missing keys -> cache-only graft, or an honest empty note.
  */
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
 import { cacheKey } from '@/lib/cache';
 import { dedupeEdges, dedupeNodes } from '@/lib/dedupe';
 import { peekCache, type SearchEngine, type SerpResult } from '@/lib/serpapi';
@@ -28,8 +27,7 @@ interface Graft {
 
 async function loadWorld(): Promise<World | null> {
   try {
-    const raw = await readFile(join(process.cwd(), 'data', 'world.json'), 'utf-8');
-    return JSON.parse(raw) as World;
+    return await getDb().getWorld();
   } catch {
     return null;
   }
