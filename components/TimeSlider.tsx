@@ -16,11 +16,11 @@ export function TimeSlider({ year, onChange }: TimeSliderProps) {
   const activeCaption = STOPS.find((s) => s.year === year)?.caption ?? '';
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex max-w-[92vw] flex-col items-center gap-2">
       <div
         role="group"
         aria-label="Time travel"
-        className="flex items-center gap-1 rounded-full border border-line bg-surface/80 px-2 py-2 backdrop-blur-md"
+        className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface/80 px-2 py-2 backdrop-blur-md"
       >
         {STOPS.map((stop) => {
           const isActive = stop.year === year;
