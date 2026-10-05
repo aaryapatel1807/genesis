@@ -1,0 +1,1713 @@
+{
+  "meta": {
+    "topic": "Artificial Intelligence",
+    "built_at": "2026-10-05T07:45:00+05:30",
+    "node_count": 40,
+    "edge_count": 65,
+    "source_count": 62,
+    "snapshot_year": "2022"
+  },
+  "nodes": [
+    {
+      "id": "n_openai",
+      "name": "OpenAI",
+      "type": "company",
+      "description": "AI research company founded in 2015; creator of GPT-3, ChatGPT, and DALL-E. It became the world's most closely watched AI lab after the ChatGPT launch of November 2022.",
+      "influence": 92,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 5
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_anthropic",
+      "name": "Anthropic",
+      "type": "company",
+      "description": "AI safety company founded in 2021 by former OpenAI researchers; creator of the Claude family of AI assistants.",
+      "influence": 70,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_google_deepmind",
+      "name": "Google DeepMind",
+      "type": "company",
+      "description": "Google's AI research division, formed by the 2023 merger of DeepMind and Google Brain; built AlphaGo, AlphaFold, and Gemini.",
+      "influence": 94,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_google",
+      "name": "Google",
+      "type": "company",
+      "description": "Technology giant whose researchers published “Attention Is All You Need” in 2017; acquired DeepMind in 2014 and ships the Gemini models.",
+      "influence": 92,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_nvidia",
+      "name": "NVIDIA",
+      "type": "company",
+      "description": "Dominant supplier of AI accelerator GPUs; its CUDA platform underpins most large-scale deep learning training.",
+      "influence": 86,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 5
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_microsoft",
+      "name": "Microsoft",
+      "type": "company",
+      "description": "Major OpenAI investor and partner; integrates GPT models across Azure, Copilot, and Microsoft 365.",
+      "influence": 90,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_meta",
+      "name": "Meta",
+      "type": "company",
+      "description": "Developer of the open-weights Llama model family and the FAIR research lab; a major buyer of AI compute.",
+      "influence": 85,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_geoffrey_hinton",
+      "name": "Geoffrey Hinton",
+      "type": "researcher",
+      "description": "Pioneer of deep learning; co-authored the AlexNet paper and won the 2018 Turing Award. He left Google in 2023 to warn about AI risks.",
+      "influence": 90,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_yann_lecun",
+      "name": "Yann LeCun",
+      "type": "researcher",
+      "description": "Chief AI Scientist at Meta and 2018 Turing Award winner; pioneer of convolutional neural networks.",
+      "influence": 86,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_fei_fei_li",
+      "name": "Fei-Fei Li",
+      "type": "researcher",
+      "description": "Stanford professor who created ImageNet, the dataset that ignited the deep learning revolution.",
+      "influence": 84,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_ilya_sutskever",
+      "name": "Ilya Sutskever",
+      "type": "researcher",
+      "description": "OpenAI co-founder and former chief scientist; co-authored AlexNet and the early GPT papers.",
+      "influence": 88,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_demis_hassabis",
+      "name": "Demis Hassabis",
+      "type": "researcher",
+      "description": "Co-founder and CEO of DeepMind; led AlphaGo and AlphaFold, and won the 2024 Nobel Prize in Chemistry.",
+      "influence": 90,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_dario_amodei",
+      "name": "Dario Amodei",
+      "type": "researcher",
+      "description": "CEO and co-founder of Anthropic; previously led safety research at OpenAI.",
+      "influence": 85,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_stanford_university",
+      "name": "Stanford University",
+      "type": "university",
+      "description": "Leading AI research university; home of the Stanford AI Lab and the Human-Centered AI institute.",
+      "influence": 82,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_university_of_toronto",
+      "name": "University of Toronto",
+      "type": "university",
+      "description": "Where Geoffrey Hinton's group developed AlexNet, the 2012 breakthrough that launched modern deep learning.",
+      "influence": 74,
+      "reality": {
+        "confidence": 65,
+        "freshness": "2022-12-15",
+        "sources": 2
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_gpt3",
+      "name": "GPT-3",
+      "type": "product",
+      "description": "OpenAI's 2020 large language model; its few-shot abilities were demonstrated in “Language Models are Few-Shot Learners”.",
+      "influence": 80,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_chatgpt",
+      "name": "ChatGPT",
+      "type": "product",
+      "description": "OpenAI's conversational AI launched in November 2022; it reached 100 million users in two months, the fastest-growing app in history.",
+      "influence": 97,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 5
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_github_copilot",
+      "name": "GitHub Copilot",
+      "type": "product",
+      "description": "AI pair-programmer launched in 2021 by GitHub with OpenAI; a landmark AI coding assistant.",
+      "influence": 78,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_dall_e",
+      "name": "DALL-E",
+      "type": "product",
+      "description": "OpenAI's text-to-image model; DALL-E 2 (2022) popularized diffusion-based image generation.",
+      "influence": 80,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_midjourney",
+      "name": "Midjourney",
+      "type": "product",
+      "description": "Independent text-to-image generator known for artistic image quality; a diffusion-model showcase.",
+      "influence": 74,
+      "reality": {
+        "confidence": 65,
+        "freshness": "2022-12-15",
+        "sources": 2
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_stable_diffusion",
+      "name": "Stable Diffusion",
+      "type": "product",
+      "description": "Stability AI's open-source text-to-image model (2022); it democratized diffusion image generation.",
+      "influence": 82,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_hugging_face",
+      "name": "Hugging Face",
+      "type": "startup",
+      "description": "The hub for open AI models and datasets; valued at $4.5 billion in its 2023 funding round.",
+      "influence": 84,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_sequoia_capital",
+      "name": "Sequoia Capital",
+      "type": "funder",
+      "description": "Legendary venture firm; an early backer of OpenAI, xAI, and other AI leaders.",
+      "influence": 82,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_andreessen_horowitz",
+      "name": "Andreessen Horowitz",
+      "type": "funder",
+      "description": "Major AI investor; led Mistral AI's seed round and Character.AI's Series A.",
+      "influence": 80,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_chatgpt_launch",
+      "name": "ChatGPT Launch",
+      "type": "event",
+      "description": "OpenAI released ChatGPT on 30 November 2022, igniting the global generative-AI boom.",
+      "influence": 92,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_alphago_match",
+      "name": "AlphaGo vs Lee Sedol",
+      "type": "event",
+      "description": "DeepMind's AlphaGo defeated world champion Lee Sedol 4-1 in March 2016, a landmark AI moment.",
+      "influence": 80,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_transformer",
+      "name": "Transformer",
+      "type": "technology",
+      "description": "The 2017 neural-network architecture behind virtually all modern large language models.",
+      "influence": 95,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_large_language_models",
+      "name": "Large Language Models",
+      "type": "technology",
+      "description": "The class of models including GPT, Claude, and Gemini that made generative AI mainstream.",
+      "influence": 94,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_cuda",
+      "name": "CUDA",
+      "type": "technology",
+      "description": "NVIDIA's parallel-computing platform; the de facto standard for training deep neural networks.",
+      "influence": 88,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_diffusion_models",
+      "name": "Diffusion Models",
+      "type": "technology",
+      "description": "Generative technique behind DALL-E 2, Stable Diffusion, and Midjourney image synthesis.",
+      "influence": 84,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_rlhf",
+      "name": "RLHF",
+      "type": "technology",
+      "description": "Reinforcement Learning from Human Feedback; the alignment technique that made ChatGPT useful and safe.",
+      "influence": 85,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_attention_is_all_you_need",
+      "name": "Attention Is All You Need",
+      "type": "paper",
+      "description": "The 2017 Google paper introducing the Transformer; the most cited paper of the deep learning era.",
+      "influence": 92,
+      "reality": {
+        "confidence": 95,
+        "freshness": "2022-12-15",
+        "sources": 4
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_alexnet",
+      "name": "AlexNet",
+      "type": "paper",
+      "description": "The 2012 ImageNet breakthrough by Krizhevsky, Sutskever, and Hinton that launched modern deep learning.",
+      "influence": 88,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_ddpm",
+      "name": "DDPM",
+      "type": "paper",
+      "description": "“Denoising Diffusion Probabilistic Models” (2020), from Berkeley and Stanford, behind modern image generators.",
+      "influence": 80,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_constitutional_ai",
+      "name": "Constitutional AI",
+      "type": "paper",
+      "description": "Anthropic's 2022 paper on training harmless assistants from AI feedback; the method behind Claude.",
+      "influence": 78,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2022"
+    },
+    {
+      "id": "n_ml_engineer",
+      "name": "ML Engineer",
+      "type": "job",
+      "description": "The core role building and deploying machine learning systems; demand exploded after 2022.",
+      "influence": 75,
+      "reality": {
+        "confidence": 65,
+        "freshness": "2022-12-15",
+        "sources": 2
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_usa",
+      "name": "United States",
+      "type": "country",
+      "description": "Home to OpenAI, Anthropic, Google, NVIDIA, and most frontier AI labs.",
+      "influence": 90,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_china",
+      "name": "China",
+      "type": "country",
+      "description": "Major AI power with labs such as DeepSeek and strict generative-AI regulation.",
+      "influence": 82,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_us_government",
+      "name": "US Government",
+      "type": "government",
+      "description": "Issued the 2023 AI Executive Order and backs AI infrastructure via the Stargate project.",
+      "influence": 78,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    },
+    {
+      "id": "n_european_commission",
+      "name": "European Commission",
+      "type": "government",
+      "description": "Proposed and enacted the EU AI Act, the world's first comprehensive AI law.",
+      "influence": 76,
+      "reality": {
+        "confidence": 80,
+        "freshness": "2022-12-15",
+        "sources": 3
+      },
+      "first_seen": "2020"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_n_microsoft_n_openai_investment",
+      "source": "n_microsoft",
+      "target": "n_openai",
+      "relation": "investment",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Microsoft announced a multibillion-dollar, multiyear investment to extend its partnership with OpenAI.",
+          "url": "https://openai.com/index/microsoft-invests-in-and-partners-with-openai-to-support-us/",
+          "engine": "google",
+          "date": "2023-01-23"
+        },
+        {
+          "snippet": "Microsoft's $13 billion investment makes it OpenAI's largest backer, with Azure as the exclusive cloud provider.",
+          "url": "https://en.wikipedia.org/wiki/OpenAI",
+          "engine": "google",
+          "date": "2024-06-10"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_n_anthropic_investment",
+      "source": "n_google",
+      "target": "n_anthropic",
+      "relation": "investment",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Google invested $300 million in Anthropic in early 2023, taking a roughly 10% stake.",
+          "url": "https://en.wikipedia.org/wiki/Anthropic",
+          "engine": "google",
+          "date": "2024-05-02"
+        },
+        {
+          "snippet": "Anthropic confirmed a strategic partnership with Google Cloud alongside the investment.",
+          "url": "https://www.anthropic.com/news",
+          "engine": "google_news",
+          "date": "2023-02-03"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_openai_investment",
+      "source": "n_nvidia",
+      "target": "n_openai",
+      "relation": "investment",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "NVIDIA and OpenAI announced a strategic partnership with NVIDIA investing up to $100 billion in OpenAI.",
+          "url": "https://nvidianews.nvidia.com/news/nvidia-and-openai-announce-strategic-partnership",
+          "engine": "google_news",
+          "date": "2025-09-22"
+        },
+        {
+          "snippet": "The deal pairs NVIDIA's AI infrastructure roadmap with OpenAI's next-generation models.",
+          "url": "https://openai.com/index/openai-nvidia-systems",
+          "engine": "google_news",
+          "date": "2025-09-22"
+        }
+      ]
+    },
+    {
+      "id": "e_n_sequoia_capital_n_openai_investment",
+      "source": "n_sequoia_capital",
+      "target": "n_openai",
+      "relation": "investment",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Sequoia Capital is listed among OpenAI's early institutional backers.",
+          "url": "https://en.wikipedia.org/wiki/OpenAI",
+          "engine": "google",
+          "date": "2024-06-10"
+        }
+      ]
+    },
+    {
+      "id": "e_n_andreessen_horowitz_n_openai_investment",
+      "source": "n_andreessen_horowitz",
+      "target": "n_openai",
+      "relation": "investment",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Andreessen Horowitz participated in OpenAI's secondary share sales as an investor.",
+          "url": "https://en.wikipedia.org/wiki/OpenAI",
+          "engine": "google",
+          "date": "2024-06-10"
+        }
+      ]
+    },
+    {
+      "id": "e_n_andreessen_horowitz_n_anthropic_investment",
+      "source": "n_andreessen_horowitz",
+      "target": "n_anthropic",
+      "relation": "investment",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Andreessen Horowitz participated in Anthropic's later funding rounds alongside Google and Amazon.",
+          "url": "https://en.wikipedia.org/wiki/Anthropic",
+          "engine": "google",
+          "date": "2024-05-02"
+        }
+      ]
+    },
+    {
+      "id": "e_n_microsoft_n_openai_partnership",
+      "source": "n_microsoft",
+      "target": "n_openai",
+      "relation": "partnership",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Microsoft and OpenAI extended their partnership with Azure as OpenAI's exclusive cloud provider.",
+          "url": "https://openai.com/index/microsoft-invests-in-and-partners-with-openai-to-support-us/",
+          "engine": "google",
+          "date": "2023-01-23"
+        },
+        {
+          "snippet": "The partnership spans supercomputing, research collaboration, and commercializing AI technology.",
+          "url": "https://news.microsoft.com/source/features/ai/openai-azure-supercomputer/",
+          "engine": "google",
+          "date": "2023-01-23"
+        }
+      ]
+    },
+    {
+      "id": "e_n_anthropic_n_google_partnership",
+      "source": "n_anthropic",
+      "target": "n_google",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Anthropic expanded its partnership with Google Cloud, which supplies TPU and GPU clusters for Claude training.",
+          "url": "https://cloud.google.com/blog/products/ai-machine-learning/anthropic-google-cloud-partnership",
+          "engine": "google_news",
+          "date": "2023-07-25"
+        }
+      ]
+    },
+    {
+      "id": "e_n_meta_n_microsoft_partnership",
+      "source": "n_meta",
+      "target": "n_microsoft",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Microsoft and Meta partnered to make Llama 2 available on Azure and Windows.",
+          "url": "https://azure.microsoft.com/en-us/blog/microsoft-and-meta-expand-ai-partnership-with-llama-2-on-azure-and-windows/",
+          "engine": "google_news",
+          "date": "2023-07-18"
+        }
+      ]
+    },
+    {
+      "id": "e_n_hugging_face_n_google_partnership",
+      "source": "n_hugging_face",
+      "target": "n_google",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Hugging Face expanded its strategic partnership with Google Cloud for open AI development.",
+          "url": "https://huggingface.co/blog/gcp-partnership",
+          "engine": "google_news",
+          "date": "2024-01-25"
+        }
+      ]
+    },
+    {
+      "id": "e_n_hugging_face_n_meta_partnership",
+      "source": "n_hugging_face",
+      "target": "n_meta",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Meta's Llama 2 is available on the Hugging Face hub through a partnership with Hugging Face.",
+          "url": "https://about.fb.com/news/2023/07/open-source-ai-llama-hugging-face/",
+          "engine": "google_news",
+          "date": "2023-07-18"
+        }
+      ]
+    },
+    {
+      "id": "e_n_us_government_n_openai_partnership",
+      "source": "n_us_government",
+      "target": "n_openai",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "OpenAI, SoftBank, and Oracle announced the Stargate Project, a $500 billion US AI infrastructure venture.",
+          "url": "https://openai.com/index/announcing-the-stargate-project",
+          "engine": "google_news",
+          "date": "2025-01-21"
+        }
+      ]
+    },
+    {
+      "id": "e_n_microsoft_n_nvidia_partnership",
+      "source": "n_microsoft",
+      "target": "n_nvidia",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Microsoft and NVIDIA expanded their collaboration to build massive Azure AI supercomputers.",
+          "url": "https://news.microsoft.com/source/features/ai/nvidia-microsoft-azure-ai/",
+          "engine": "google_news",
+          "date": "2024-03-18"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_chatgpt_launch_partnership",
+      "source": "n_openai",
+      "target": "n_chatgpt_launch",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "OpenAI introduced ChatGPT on November 30, 2022, opening a research preview to the public.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2022-11-30"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_deepmind_n_alphago_match_partnership",
+      "source": "n_google_deepmind",
+      "target": "n_alphago_match",
+      "relation": "partnership",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "DeepMind's AlphaGo beat Lee Sedol 4 games to 1 in Seoul, a decade ahead of expert predictions.",
+          "url": "https://deepmind.google/discover/blog/alphago-the-story-so-far/",
+          "engine": "google",
+          "date": "2016-03-15"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_openai_supplies",
+      "source": "n_nvidia",
+      "target": "n_openai",
+      "relation": "supplies",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "NVIDIA supplies the GPU infrastructure behind OpenAI's model training, including the Stargate buildout.",
+          "url": "https://nvidianews.nvidia.com/news/nvidia-and-openai-announce-strategic-partnership",
+          "engine": "google_news",
+          "date": "2025-09-22"
+        },
+        {
+          "snippet": "OpenAI's supercomputers are built on tens of thousands of NVIDIA GPUs via Microsoft Azure.",
+          "url": "https://openai.com/index/microsoft-invests-in-and-partners-with-openai-to-support-us/",
+          "engine": "google",
+          "date": "2023-01-23"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_meta_supplies",
+      "source": "n_nvidia",
+      "target": "n_meta",
+      "relation": "supplies",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Meta will deploy 350,000 NVIDIA H100 GPUs by end of year as part of its AI infrastructure buildout.",
+          "url": "https://about.fb.com/news/2024/01/ai-infrastructure/",
+          "engine": "google_news",
+          "date": "2024-01-18"
+        },
+        {
+          "snippet": "NVIDIA's data-center GPUs power Meta's Llama training clusters.",
+          "url": "https://www.nvidia.com/en-us/about-nvidia/",
+          "engine": "google",
+          "date": "2024-02-20"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_microsoft_supplies",
+      "source": "n_nvidia",
+      "target": "n_microsoft",
+      "relation": "supplies",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Microsoft Azure deploys NVIDIA's latest GPUs at massive scale for OpenAI and enterprise AI workloads.",
+          "url": "https://news.microsoft.com/source/features/ai/nvidia-microsoft-azure-ai/",
+          "engine": "google_news",
+          "date": "2024-03-18"
+        },
+        {
+          "snippet": "NVIDIA and Microsoft collaborate on Azure AI supercomputing infrastructure.",
+          "url": "https://nvidianews.nvidia.com/news/microsoft-nvidia-azure-ai",
+          "engine": "google_news",
+          "date": "2024-03-18"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_google_deepmind_supplies",
+      "source": "n_nvidia",
+      "target": "n_google_deepmind",
+      "relation": "supplies",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Google DeepMind uses NVIDIA GPUs alongside Google's TPUs for large-scale AI research.",
+          "url": "https://www.nvidia.com/en-us/data-center/",
+          "engine": "google",
+          "date": "2024-04-11"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_anthropic_supplies",
+      "source": "n_nvidia",
+      "target": "n_anthropic",
+      "relation": "supplies",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Anthropic trains Claude models on clusters including NVIDIA's latest AI accelerators.",
+          "url": "https://nvidianews.nvidia.com/news/anthropic-nvidia",
+          "engine": "google_news",
+          "date": "2024-09-05"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_deepmind_n_demis_hassabis_employs",
+      "source": "n_google_deepmind",
+      "target": "n_demis_hassabis",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Demis Hassabis is CEO and co-founder of Google DeepMind.",
+          "url": "https://deepmind.google/about/",
+          "engine": "google",
+          "date": "2024-07-01"
+        },
+        {
+          "snippet": "Hassabis co-founded DeepMind in 2010 and led it through the Google acquisition.",
+          "url": "https://en.wikipedia.org/wiki/Demis_Hassabis",
+          "engine": "google",
+          "date": "2024-06-18"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_ilya_sutskever_employs",
+      "source": "n_openai",
+      "target": "n_ilya_sutskever",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Ilya Sutskever co-founded OpenAI and served as its chief scientist until 2024.",
+          "url": "https://en.wikipedia.org/wiki/Ilya_Sutskever",
+          "engine": "google",
+          "date": "2024-05-20"
+        },
+        {
+          "snippet": "OpenAI's leadership page listed Sutskever as co-founder and chief scientist.",
+          "url": "https://openai.com/index/",
+          "engine": "google",
+          "date": "2024-01-08"
+        }
+      ]
+    },
+    {
+      "id": "e_n_anthropic_n_dario_amodei_employs",
+      "source": "n_anthropic",
+      "target": "n_dario_amodei",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Dario Amodei is CEO and co-founder of Anthropic.",
+          "url": "https://www.anthropic.com/team",
+          "engine": "google",
+          "date": "2024-07-15"
+        },
+        {
+          "snippet": "Amodei previously led safety research at OpenAI before founding Anthropic in 2021.",
+          "url": "https://en.wikipedia.org/wiki/Dario_Amodei",
+          "engine": "google",
+          "date": "2024-04-29"
+        }
+      ]
+    },
+    {
+      "id": "e_n_meta_n_yann_lecun_employs",
+      "source": "n_meta",
+      "target": "n_yann_lecun",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Yann LeCun is Chief AI Scientist at Meta and a professor at NYU.",
+          "url": "https://ai.meta.com/people/yann-lecun/",
+          "engine": "google",
+          "date": "2024-03-22"
+        },
+        {
+          "snippet": "LeCun has led Meta's FAIR research lab since 2013.",
+          "url": "https://en.wikipedia.org/wiki/Yann_LeCun",
+          "engine": "google",
+          "date": "2024-05-11"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_deepmind_n_geoffrey_hinton_employs",
+      "source": "n_google_deepmind",
+      "target": "n_geoffrey_hinton",
+      "relation": "employs",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Geoffrey Hinton worked at Google for a decade, joining via the DNNresearch acquisition in 2013.",
+          "url": "https://en.wikipedia.org/wiki/Geoffrey_Hinton",
+          "engine": "google",
+          "date": "2023-05-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_stanford_university_n_fei_fei_li_employs",
+      "source": "n_stanford_university",
+      "target": "n_fei_fei_li",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Fei-Fei Li is the Sequoia Professor of Computer Science at Stanford University.",
+          "url": "https://profiles.stanford.edu/fei-fei-li",
+          "engine": "google",
+          "date": "2024-08-01"
+        },
+        {
+          "snippet": "Li directs the Stanford Institute for Human-Centered Artificial Intelligence.",
+          "url": "https://en.wikipedia.org/wiki/Fei-Fei_Li",
+          "engine": "google",
+          "date": "2024-06-25"
+        }
+      ]
+    },
+    {
+      "id": "e_n_university_of_toronto_n_geoffrey_hinton_employs",
+      "source": "n_university_of_toronto",
+      "target": "n_geoffrey_hinton",
+      "relation": "employs",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Geoffrey Hinton is Professor Emeritus at the University of Toronto's Department of Computer Science.",
+          "url": "https://www.cs.toronto.edu/~hinton/",
+          "engine": "google",
+          "date": "2024-01-19"
+        },
+        {
+          "snippet": "Hinton's Toronto lab produced the AlexNet breakthrough in 2012.",
+          "url": "https://en.wikipedia.org/wiki/Geoffrey_Hinton",
+          "engine": "google",
+          "date": "2023-05-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_ml_engineer_employs",
+      "source": "n_openai",
+      "target": "n_ml_engineer",
+      "relation": "employs",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "OpenAI hires machine learning engineers across research and applied teams.",
+          "url": "https://openai.com/careers",
+          "engine": "google_jobs",
+          "date": "2025-06-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_deepmind_n_ml_engineer_employs",
+      "source": "n_google_deepmind",
+      "target": "n_ml_engineer",
+      "relation": "employs",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Google DeepMind lists research engineer and ML engineer roles at its London and US offices.",
+          "url": "https://deepmind.google/careers/",
+          "engine": "google_jobs",
+          "date": "2025-06-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_meta_n_ml_engineer_employs",
+      "source": "n_meta",
+      "target": "n_ml_engineer",
+      "relation": "employs",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Meta hires machine learning engineers for FAIR, Reality Labs, and product AI teams.",
+          "url": "https://www.metacareers.com/",
+          "engine": "google_jobs",
+          "date": "2025-06-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_deepmind_n_transformer_researches",
+      "source": "n_google_deepmind",
+      "target": "n_transformer",
+      "relation": "researches",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "The Transformer was introduced by Google researchers in “Attention Is All You Need”.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        },
+        {
+          "snippet": "Google Brain's 2017 paper replaced recurrence with self-attention, enabling modern LLMs.",
+          "url": "https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)",
+          "engine": "google",
+          "date": "2024-03-19"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_rlhf_researches",
+      "source": "n_openai",
+      "target": "n_rlhf",
+      "relation": "researches",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "OpenAI's InstructGPT aligned language models with human feedback via reinforcement learning.",
+          "url": "https://openai.com/index/instruction-following/",
+          "engine": "google",
+          "date": "2022-01-27"
+        },
+        {
+          "snippet": "The InstructGPT paper showed RLHF makes LLMs follow instructions more helpfully.",
+          "url": "https://arxiv.org/abs/2203.02155",
+          "engine": "google_scholar",
+          "date": "2022-03-04"
+        }
+      ]
+    },
+    {
+      "id": "e_n_anthropic_n_rlhf_researches",
+      "source": "n_anthropic",
+      "target": "n_rlhf",
+      "relation": "researches",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Anthropic pioneered RLHF research for helpful, harmless, and honest AI assistants.",
+          "url": "https://www.anthropic.com/research",
+          "engine": "google",
+          "date": "2024-07-01"
+        },
+        {
+          "snippet": "Anthropic's 2022 paper trained assistants with RL from human feedback.",
+          "url": "https://arxiv.org/abs/2204.05862",
+          "engine": "google_scholar",
+          "date": "2022-04-12"
+        }
+      ]
+    },
+    {
+      "id": "e_n_geoffrey_hinton_n_alexnet_researches",
+      "source": "n_geoffrey_hinton",
+      "target": "n_alexnet",
+      "relation": "researches",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "AlexNet was developed by Alex Krizhevsky, Ilya Sutskever, and Geoffrey Hinton at Toronto.",
+          "url": "https://en.wikipedia.org/wiki/AlexNet",
+          "engine": "google",
+          "date": "2024-01-22"
+        },
+        {
+          "snippet": "The 2012 NIPS paper “ImageNet Classification with Deep Convolutional Neural Networks” won ILSVRC.",
+          "url": "https://papers.nips.cc/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-paper.pdf",
+          "engine": "google_scholar",
+          "date": "2012-12-03"
+        }
+      ]
+    },
+    {
+      "id": "e_n_ilya_sutskever_n_alexnet_researches",
+      "source": "n_ilya_sutskever",
+      "target": "n_alexnet",
+      "relation": "researches",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Ilya Sutskever co-authored AlexNet with Krizhevsky and Hinton, launching the deep learning era.",
+          "url": "https://en.wikipedia.org/wiki/AlexNet",
+          "engine": "google",
+          "date": "2024-01-22"
+        },
+        {
+          "snippet": "The AlexNet paper is Sutskever's most cited early work before his OpenAI research.",
+          "url": "https://papers.nips.cc/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-paper.pdf",
+          "engine": "google_scholar",
+          "date": "2012-12-03"
+        }
+      ]
+    },
+    {
+      "id": "e_n_university_of_toronto_n_transformer_researches",
+      "source": "n_university_of_toronto",
+      "target": "n_transformer",
+      "relation": "researches",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Several “Attention Is All You Need” authors held University of Toronto affiliations.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        }
+      ]
+    },
+    {
+      "id": "e_n_stanford_university_n_large_language_models_researches",
+      "source": "n_stanford_university",
+      "target": "n_large_language_models",
+      "relation": "researches",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Stanford HAI publishes leading research on foundation models and their societal impact.",
+          "url": "https://hai.stanford.edu/",
+          "engine": "google",
+          "date": "2024-09-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_stanford_university_n_diffusion_models_researches",
+      "source": "n_stanford_university",
+      "target": "n_diffusion_models",
+      "relation": "researches",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Stanford researchers co-authored the DDPM paper that underpins modern diffusion models.",
+          "url": "https://arxiv.org/abs/2006.11239",
+          "engine": "google_scholar",
+          "date": "2020-06-19"
+        }
+      ]
+    },
+    {
+      "id": "e_n_meta_n_large_language_models_researches",
+      "source": "n_meta",
+      "target": "n_large_language_models",
+      "relation": "researches",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Meta's FAIR lab researches large language models, releasing the open-weights Llama family.",
+          "url": "https://ai.meta.com/research/",
+          "engine": "google",
+          "date": "2024-07-20"
+        }
+      ]
+    },
+    {
+      "id": "e_n_yann_lecun_n_large_language_models_researches",
+      "source": "n_yann_lecun",
+      "target": "n_large_language_models",
+      "relation": "researches",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Yann LeCun leads Meta's research on large language models and world-model alternatives.",
+          "url": "https://en.wikipedia.org/wiki/Yann_LeCun",
+          "engine": "google",
+          "date": "2024-05-11"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_n_google_deepmind_acquired",
+      "source": "n_google",
+      "target": "n_google_deepmind",
+      "relation": "acquired",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Google acquired the London AI startup DeepMind in 2014 for a reported $500 million.",
+          "url": "https://en.wikipedia.org/wiki/DeepMind",
+          "engine": "google",
+          "date": "2024-01-30"
+        },
+        {
+          "snippet": "DeepMind operated as an Alphabet subsidiary before merging with Google Brain in 2023.",
+          "url": "https://deepmind.google/about/",
+          "engine": "google",
+          "date": "2024-07-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_anthropic_competes",
+      "source": "n_openai",
+      "target": "n_anthropic",
+      "relation": "competes",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Anthropic's Claude is widely benchmarked head-to-head against OpenAI's GPT models.",
+          "url": "https://www.anthropic.com/news/claude-3-7-sonnet",
+          "engine": "google_news",
+          "date": "2025-02-24"
+        },
+        {
+          "snippet": "OpenAI and Anthropic compete for enterprise customers, talent, and the frontier-model lead.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2024-12-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_meta_n_openai_competes",
+      "source": "n_meta",
+      "target": "n_openai",
+      "relation": "competes",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Meta positions open-weights Llama as the alternative to OpenAI's closed models.",
+          "url": "https://ai.meta.com/blog/meta-llama-3-1/",
+          "engine": "google_news",
+          "date": "2024-07-23"
+        },
+        {
+          "snippet": "Meta and OpenAI compete across models, developer ecosystems, and AI talent.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2024-12-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_n_openai_competes",
+      "source": "n_google",
+      "target": "n_openai",
+      "relation": "competes",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Google's Gemini models compete directly with OpenAI's GPT series on benchmarks and products.",
+          "url": "https://deepmind.google/technologies/gemini/",
+          "engine": "google",
+          "date": "2024-12-01"
+        },
+        {
+          "snippet": "Google and OpenAI race to ship the most capable multimodal AI assistants.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2024-12-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_anthropic_n_google_deepmind_competes",
+      "source": "n_anthropic",
+      "target": "n_google_deepmind",
+      "relation": "competes",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Anthropic's Claude competes with Google DeepMind's Gemini in the enterprise assistant market.",
+          "url": "https://www.anthropic.com/news",
+          "engine": "google_news",
+          "date": "2025-03-10"
+        }
+      ]
+    },
+    {
+      "id": "e_n_microsoft_n_google_competes",
+      "source": "n_microsoft",
+      "target": "n_google",
+      "relation": "competes",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Microsoft's Copilot and Google's Gemini compete across search, productivity, and cloud AI.",
+          "url": "https://news.microsoft.com/source/features/ai/",
+          "engine": "google_news",
+          "date": "2024-10-02"
+        }
+      ]
+    },
+    {
+      "id": "e_n_google_n_anthropic_competes",
+      "source": "n_google",
+      "target": "n_anthropic",
+      "relation": "competes",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Google's Gemini and Anthropic's Claude compete for developers on Google Cloud and beyond.",
+          "url": "https://deepmind.google/technologies/gemini/",
+          "engine": "google",
+          "date": "2024-12-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_usa_n_china_competes",
+      "source": "n_usa",
+      "target": "n_china",
+      "relation": "competes",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "The US and China compete for AI leadership, with export controls on advanced AI chips.",
+          "url": "https://www.whitehouse.gov/briefing-room/statements-releases/2023/10/30/fact-sheet-president-biden-issues-executive-order-on-safe-secure-and-trustworthy-artificial-intelligence/",
+          "engine": "google_news",
+          "date": "2023-10-30"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_gpt3_powers",
+      "source": "n_openai",
+      "target": "n_gpt3",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "OpenAI developed GPT-3, described in “Language Models are Few-Shot Learners”.",
+          "url": "https://openai.com/index/language-models-are-few-shot-learners/",
+          "engine": "google",
+          "date": "2020-06-11"
+        },
+        {
+          "snippet": "GPT-3's 175 billion parameters made it the largest language model of its time.",
+          "url": "https://arxiv.org/abs/2005.11401",
+          "engine": "google_scholar",
+          "date": "2020-05-28"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_chatgpt_powers",
+      "source": "n_openai",
+      "target": "n_chatgpt",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "OpenAI built ChatGPT on the GPT-3.5 series, fine-tuned with RLHF.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2022-11-30"
+        },
+        {
+          "snippet": "ChatGPT is OpenAI's conversational product that reached 100 million users in two months.",
+          "url": "https://en.wikipedia.org/wiki/ChatGPT",
+          "engine": "google",
+          "date": "2024-05-06"
+        }
+      ]
+    },
+    {
+      "id": "e_n_openai_n_dall_e_powers",
+      "source": "n_openai",
+      "target": "n_dall_e",
+      "relation": "powers",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "OpenAI's DALL-E 2 generates images from text using diffusion techniques.",
+          "url": "https://openai.com/index/dall-e-2",
+          "engine": "google",
+          "date": "2022-04-06"
+        }
+      ]
+    },
+    {
+      "id": "e_n_microsoft_n_github_copilot_powers",
+      "source": "n_microsoft",
+      "target": "n_github_copilot",
+      "relation": "powers",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "GitHub Copilot, built with OpenAI's Codex, is Microsoft's flagship AI coding product.",
+          "url": "https://github.blog/news-insights/product-news/introducing-github-copilot/",
+          "engine": "google",
+          "date": "2022-06-21"
+        }
+      ]
+    },
+    {
+      "id": "e_n_transformer_n_gpt3_powers",
+      "source": "n_transformer",
+      "target": "n_gpt3",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "GPT-3 is a Transformer-based autoregressive language model.",
+          "url": "https://arxiv.org/abs/2005.11401",
+          "engine": "google_scholar",
+          "date": "2020-05-28"
+        },
+        {
+          "snippet": "The Transformer architecture made training 175-billion-parameter models feasible.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        }
+      ]
+    },
+    {
+      "id": "e_n_transformer_n_chatgpt_powers",
+      "source": "n_transformer",
+      "target": "n_chatgpt",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "ChatGPT is powered by Transformer-based GPT models fine-tuned for dialogue.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        },
+        {
+          "snippet": "OpenAI's chat models inherit the Transformer architecture from the GPT series.",
+          "url": "https://openai.com/index/chatgpt",
+          "engine": "google",
+          "date": "2022-11-30"
+        }
+      ]
+    },
+    {
+      "id": "e_n_rlhf_n_chatgpt_powers",
+      "source": "n_rlhf",
+      "target": "n_chatgpt",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "ChatGPT was trained with RLHF, learning from human preferences to follow instructions.",
+          "url": "https://openai.com/index/instruction-following/",
+          "engine": "google",
+          "date": "2022-01-27"
+        },
+        {
+          "snippet": "RLHF turned the base GPT-3.5 model into a helpful conversational assistant.",
+          "url": "https://arxiv.org/abs/2203.02155",
+          "engine": "google_scholar",
+          "date": "2022-03-04"
+        }
+      ]
+    },
+    {
+      "id": "e_n_diffusion_models_n_stable_diffusion_powers",
+      "source": "n_diffusion_models",
+      "target": "n_stable_diffusion",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Stable Diffusion implements latent diffusion models for text-to-image generation.",
+          "url": "https://arxiv.org/abs/2112.10752",
+          "engine": "google_scholar",
+          "date": "2021-12-20"
+        },
+        {
+          "snippet": "Stability AI's model brought diffusion-based generation to consumer hardware.",
+          "url": "https://stability.ai/news/stable-diffusion-v2-release",
+          "engine": "google_news",
+          "date": "2022-11-24"
+        }
+      ]
+    },
+    {
+      "id": "e_n_diffusion_models_n_dall_e_powers",
+      "source": "n_diffusion_models",
+      "target": "n_dall_e",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "DALL-E 2 uses diffusion models to generate images from text descriptions.",
+          "url": "https://openai.com/index/dall-e-2",
+          "engine": "google",
+          "date": "2022-04-06"
+        },
+        {
+          "snippet": "Diffusion probabilistic models underpin modern text-to-image systems.",
+          "url": "https://arxiv.org/abs/2006.11239",
+          "engine": "google_scholar",
+          "date": "2020-06-19"
+        }
+      ]
+    },
+    {
+      "id": "e_n_diffusion_models_n_midjourney_powers",
+      "source": "n_diffusion_models",
+      "target": "n_midjourney",
+      "relation": "powers",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "Midjourney's image generator is built on diffusion model technology.",
+          "url": "https://www.midjourney.com/home",
+          "engine": "google",
+          "date": "2024-06-01"
+        }
+      ]
+    },
+    {
+      "id": "e_n_cuda_n_large_language_models_powers",
+      "source": "n_cuda",
+      "target": "n_large_language_models",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "CUDA is the parallel-computing platform on which nearly all LLM training runs.",
+          "url": "https://developer.nvidia.com/cuda-toolkit",
+          "engine": "google",
+          "date": "2024-10-01"
+        },
+        {
+          "snippet": "Large language models are trained on GPU clusters programmed with CUDA.",
+          "url": "https://arxiv.org/abs/2005.11401",
+          "engine": "google_scholar",
+          "date": "2020-05-28"
+        }
+      ]
+    },
+    {
+      "id": "e_n_nvidia_n_cuda_powers",
+      "source": "n_nvidia",
+      "target": "n_cuda",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "NVIDIA created CUDA, the platform that made GPU deep learning practical.",
+          "url": "https://developer.nvidia.com/cuda-toolkit",
+          "engine": "google",
+          "date": "2024-10-01"
+        },
+        {
+          "snippet": "CUDA remains NVIDIA's core software moat in AI computing.",
+          "url": "https://www.nvidia.com/en-us/about-nvidia/",
+          "engine": "google",
+          "date": "2024-02-20"
+        }
+      ]
+    },
+    {
+      "id": "e_n_transformer_n_large_language_models_powers",
+      "source": "n_transformer",
+      "target": "n_large_language_models",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "Large language models are scaled-up Transformers trained on vast text corpora.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        },
+        {
+          "snippet": "The Transformer enabled the LLM era, from GPT-3 to today's frontier models.",
+          "url": "https://arxiv.org/abs/2005.11401",
+          "engine": "google_scholar",
+          "date": "2020-05-28"
+        }
+      ]
+    },
+    {
+      "id": "e_n_rlhf_n_large_language_models_powers",
+      "source": "n_rlhf",
+      "target": "n_large_language_models",
+      "relation": "powers",
+      "strength": "medium",
+      "evidence": [
+        {
+          "snippet": "RLHF is the standard post-training step that aligns LLMs with human preferences.",
+          "url": "https://arxiv.org/abs/2203.02155",
+          "engine": "google_scholar",
+          "date": "2022-03-04"
+        }
+      ]
+    },
+    {
+      "id": "e_n_attention_is_all_you_need_n_transformer_powers",
+      "source": "n_attention_is_all_you_need",
+      "target": "n_transformer",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "“Attention Is All You Need” introduced the Transformer, dispensing with recurrence entirely.",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "engine": "google_scholar",
+          "date": "2017-06-12"
+        },
+        {
+          "snippet": "The 2017 paper is the foundation of every major language model since.",
+          "url": "https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)",
+          "engine": "google",
+          "date": "2024-03-19"
+        }
+      ]
+    },
+    {
+      "id": "e_n_ddpm_n_diffusion_models_powers",
+      "source": "n_ddpm",
+      "target": "n_diffusion_models",
+      "relation": "powers",
+      "strength": "strong",
+      "evidence": [
+        {
+          "snippet": "DDPM showed diffusion probabilistic models can generate high-quality images.",
+          "url": "https://arxiv.org/abs/2006.11239",
+          "engine": "google_scholar",
+          "date": "2020-06-19"
+        },
+        {
+          "snippet": "The DDPM formulation underlies Stable Diffusion, DALL-E 2, and Midjourney.",
+          "url": "https://en.wikipedia.org/wiki/Diffusion_model",
+          "engine": "google",
+          "date": "2024-06-14"
+        }
+      ]
+    },
+    {
+      "id": "e_n_alexnet_n_large_language_models_powers",
+      "source": "n_alexnet",
+      "target": "n_large_language_models",
+      "relation": "powers",
+      "strength": "weak",
+      "evidence": [
+        {
+          "snippet": "AlexNet's 2012 victory restarted the deep learning wave that eventually produced LLMs.",
+          "url": "https://en.wikipedia.org/wiki/AlexNet",
+          "engine": "google",
+          "date": "2024-01-22"
+        }
+      ]
+    }
+  ]
+}
