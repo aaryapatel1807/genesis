@@ -71,7 +71,7 @@ export interface ExpandResponse {
 export type CascadeSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export interface SimCascade {
-  node: string;
+  nodeId: string;
   effect: string;
   severity: CascadeSeverity;
 }

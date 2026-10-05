@@ -385,8 +385,8 @@ function WorldView() {
           body: JSON.stringify({ scenario }),
         });
         const items: SimCascadeItem[] = data.cascades.map((c) => ({
-          nodeId: c.node,
-          nodeName: nodesById.get(c.node)?.name ?? c.node,
+          nodeId: c.nodeId,
+          nodeName: nodesById.get(c.nodeId)?.name ?? c.nodeId,
           effect: c.effect,
           impact: severityToImpact(c.severity),
         }));
