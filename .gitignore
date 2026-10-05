@@ -19,3 +19,6 @@ data/credit-ledger.json
 # misc
 .DS_Store
 *.log
+
+# typescript
+tsconfig.tsbuildinfo
