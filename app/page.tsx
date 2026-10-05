@@ -1,6 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { AmbientField } from '@/components/AmbientField';
+import { Button } from '@/components/ui/button';
+import { useMotionVariants } from '@/lib/motion';
 
 const STEPS = [
   { title: 'Generate', body: 'Live search builds the universe in seconds.' },
@@ -10,9 +14,12 @@ const STEPS = [
 
 export default function Home() {
   const router = useRouter();
+  const { container, enterUp, enter } = useMotionVariants();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-void text-ink">
+      {/* Living ambient network — matches the approved landing mockup */}
+      <AmbientField />
       {/* Faint dot grid — 4% opacity, hero only (Theme.md) */}
       <div
         aria-hidden="true"
@@ -29,18 +36,29 @@ export default function Home() {
         className="vignette pointer-events-none absolute inset-0"
       />
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
-        <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-muted">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={container}
+        className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center"
+      >
+        <motion.p
+          variants={enter}
+          className="font-mono text-[11px] uppercase tracking-[0.35em] text-muted"
+        >
           A living world model
-        </p>
-        <h1 className="mt-4 text-[44px] font-bold leading-none tracking-[-0.02em]">
+        </motion.p>
+        <motion.h1
+          variants={enterUp}
+          className="mt-4 text-[44px] font-bold leading-none tracking-[-0.02em] sm:text-[56px]"
+        >
           GENESIS
-        </h1>
-        <p className="mt-4 text-lg text-muted">
+        </motion.h1>
+        <motion.p variants={enterUp} className="mt-4 text-lg text-muted">
           Ask anything. Watch a world emerge.
-        </p>
+        </motion.p>
 
-        <div className="mt-10 w-full max-w-xl">
+        <motion.div variants={enterUp} className="mt-10 w-full max-w-xl">
           <label
             htmlFor="topic"
             className="mb-2 block text-left font-mono text-[11px] uppercase tracking-[0.2em] text-muted"
@@ -58,21 +76,30 @@ export default function Home() {
           <p id="topic-note" className="mt-2 text-[11px] text-muted">
             v1: AI Ecosystem — the topic is fixed for the demo build.
           </p>
-        </div>
+        </motion.div>
 
-        <button
-          type="button"
-          onClick={() => router.push('/world')}
-          className="mt-8 rounded-xl bg-gold px-10 py-4 text-lg font-semibold text-void shadow-[0_0_24px_rgba(245,185,66,0.35)] transition-transform hover:scale-[1.03] active:scale-[0.99]"
+        <motion.div variants={enterUp}>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => router.push('/world')}
+            className="mt-8"
+          >
+            Generate World
+          </Button>
+        </motion.div>
+
+        <motion.div
+          variants={container}
+          className="mt-16 grid w-full gap-4 text-left sm:grid-cols-3"
         >
-          Generate World
-        </button>
-
-        <div className="mt-16 grid w-full gap-4 text-left sm:grid-cols-3">
           {STEPS.map((step, i) => (
-            <div
+            <motion.div
               key={step.title}
-              className="rounded-[14px] border border-line bg-surface p-5"
+              variants={enterUp}
+              whileHover={{ y: -4 }}
+              transition={{ duration: 0.25 }}
+              className="rounded-[14px] border border-line bg-surface/80 p-5 backdrop-blur-sm"
             >
               <p className="font-mono text-[11px] text-gold">
                 {String(i + 1).padStart(2, '0')}
@@ -81,14 +108,17 @@ export default function Home() {
               <p className="mt-1 text-sm leading-relaxed text-muted">
                 {step.body}
               </p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
-        <footer className="mt-16 pb-8 text-[11px] text-muted">
+        <motion.footer
+          variants={enter}
+          className="mt-16 pb-8 text-[11px] text-muted"
+        >
           Built with SerpApi live search · Demo for SerpApi India Hackathon 2026
-        </footer>
-      </div>
+        </motion.footer>
+      </motion.div>
     </main>
   );
 }

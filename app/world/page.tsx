@@ -3,6 +3,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Loader2, Zap } from 'lucide-react';
+import { GEN_PHASE_META } from '@/lib/generation';
+import { useWorldStore } from '@/stores/useWorldStore';
+import { GenerationSequence } from '@/components/GenerationSequence';
+import { Sheet } from '@/components/ui/sheet';
 import {
   LAYERS,
   LAYER_ORDER,
@@ -124,20 +130,17 @@ function WorldView() {
   const [affected, setAffected] = useState<string[]>([]);
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [expandEmptyIds, setExpandEmptyIds] = useState<Set<string>>(new Set());
-  const [toast, setToast] = useState<{
-    message: string;
-    kind: 'info' | 'warn' | 'error';
-  } | null>(null);
-  const [announcement, setAnnouncement] = useState('');
+  /** True once the first-load generation sequence has completed. */
+  const [introDone, setIntroDone] = useState(false);
+  const worldReadyRef = useRef(false);
 
-  const showToast = useCallback(
-    (message: string, kind: 'info' | 'warn' | 'error' = 'info') => {
-      setToast({ message, kind });
-    },
-    [],
-  );
-  const dismissToast = useCallback(() => setToast(null), []);
-  const announce = useCallback((text: string) => setAnnouncement(text), []);
+  // Global UI state (zustand): generation phase, toast, announcements.
+  const phase = useWorldStore((s) => s.phase);
+  const setPhase = useWorldStore((s) => s.setPhase);
+  const resetSequence = useWorldStore((s) => s.resetSequence);
+  const showToast = useWorldStore((s) => s.showToast);
+  const announcement = useWorldStore((s) => s.announcement);
+  const announce = useWorldStore((s) => s.announce);
 
   const loadYear = useCallback(
     async (y: number, reqId: number): Promise<void> => {
@@ -149,6 +152,7 @@ function WorldView() {
         const data = await fetchJson<World>(url);
         if (reqId !== reqRef.current) return;
         setWorld(data);
+        worldReadyRef.current = true;
         announce(
           `World loaded: ${data.meta.node_count} entities, ${data.meta.edge_count} connections.`,
         );
@@ -164,18 +168,64 @@ function WorldView() {
     [announce],
   );
 
-  // Initial load: honors ?snapshot= and ?node= deep links.
+  // Initial load: honors ?snapshot= and ?node= deep links, then runs the
+  // staged generation sequence. The data fetch and the staged beats run in
+  // parallel; the canvas handover (bloom → edges → camera → interaction)
+  // waits for both. Reduced motion compresses every beat to a crossfade.
   useEffect(() => {
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const scale = reduced ? 0.08 : 1;
+    const sleep = (ms: number): Promise<void> =>
+      new Promise((r) => setTimeout(r, ms * scale));
+    let cancelled = false;
+
     const snap = Number.parseInt(searchParams.get('snapshot') ?? '', 10);
     const y = YEARS.includes(snap) ? snap : LATEST_YEAR;
     setYear(y);
     reqRef.current += 1;
     const reqId = reqRef.current;
-    void loadYear(y, reqId).then(() => {
-      if (reqId !== reqRef.current) return;
+    resetSequence();
+
+    const load = loadYear(y, reqId).then(() => {
+      if (cancelled || reqId !== reqRef.current) return;
       const nodeId = searchParams.get('node');
       if (nodeId) setSelectedNodeId(nodeId);
     });
+
+    void (async () => {
+      await sleep(GEN_PHASE_META.searching.durationMs);
+      if (cancelled) return;
+      setPhase('discovering');
+      await sleep(GEN_PHASE_META.discovering.durationMs);
+      if (cancelled) return;
+      setPhase('relationships');
+      await sleep(GEN_PHASE_META.relationships.durationMs);
+      if (cancelled) return;
+      setPhase('generating');
+      await load; // the universe must exist before it can bloom
+      await sleep(GEN_PHASE_META.generating.durationMs);
+      if (cancelled || reqId !== reqRef.current) return;
+      if (!worldReadyRef.current) {
+        // Load failed — the error overlay takes over from here.
+        setPhase('ready');
+        setIntroDone(true);
+        return;
+      }
+      setPhase('blooming');
+      announce('World generated — rendering the universe.');
+      graphHandleRef.current?.introZoom();
+      await sleep(GEN_PHASE_META.blooming.durationMs);
+      if (cancelled) return;
+      setPhase('ready');
+      announce('Universe ready. Interaction enabled.');
+      setIntroDone(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -429,7 +479,7 @@ function WorldView() {
 
   return (
     <main className="vignette fixed inset-0 overflow-hidden bg-void text-ink">
-      {/* Canvas */}
+      {/* Canvas — interaction stays locked until the sequence is ready */}
       <div className="absolute inset-0">
         {world && (
           <UniverseGraph
@@ -440,6 +490,8 @@ function WorldView() {
             onEdgeClick={handleEdgeClick}
             dimmed={dimmed}
             pulsing={pulsing}
+            introReveal={phase === 'blooming' || phase === 'ready'}
+            interactive={phase === 'ready'}
             onNodeExpand={(node) => {
               void handleExpand(node.id);
             }}
@@ -482,23 +534,13 @@ function WorldView() {
               return !open;
             });
           }}
-          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium backdrop-blur-md transition-colors ${
+          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium backdrop-blur-md transition-all hover:scale-[1.03] active:scale-[0.97] ${
             simOpen
               ? 'border-gold/60 bg-gold/15 text-gold'
               : 'border-line bg-surface/80 text-ink hover:border-gold/60 hover:text-gold'
           }`}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
-          >
-            <path d="M9 2L4 9h3l-1 5 5-7H8l1-5z" strokeLinejoin="round" />
-          </svg>
+          <Zap size={16} aria-hidden="true" />
           Simulate
         </button>
       </div>
@@ -509,79 +551,94 @@ function WorldView() {
       </div>
 
       {/* Node panel — right sheet */}
-      {selectedNode && (
-        <div className="absolute right-0 top-0 z-20 h-full">
-          <NodePanel
-            node={selectedNode}
-            connections={connections}
-            expanding={expandingId === selectedNode.id}
-            budgetExhausted={budgetExhausted}
-            expandEmpty={expandEmptyIds.has(selectedNode.id)}
-            onExpand={handleExpand}
-            onJump={handleJump}
+      <AnimatePresence>
+        {selectedNode && (
+          <Sheet
+            key={`node-${selectedNode.id}`}
+            open
             onClose={() => setSelectedNodeId(null)}
-          />
-        </div>
-      )}
+            label={`Details for ${selectedNode.name}`}
+            side="right"
+            className="absolute right-0 top-0 z-20 h-full"
+          >
+            <NodePanel
+              node={selectedNode}
+              connections={connections}
+              expanding={expandingId === selectedNode.id}
+              budgetExhausted={budgetExhausted}
+              expandEmpty={expandEmptyIds.has(selectedNode.id)}
+              onExpand={handleExpand}
+              onJump={handleJump}
+              onClose={() => setSelectedNodeId(null)}
+            />
+          </Sheet>
+        )}
+      </AnimatePresence>
 
       {/* Edge panel — bottom sheet */}
-      {selectedEdge && !selectedNode && (
-        <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-3xl -translate-x-1/2 px-4">
-          <EdgePanel
-            edge={selectedEdge}
-            sourceName={nodesById.get(selectedEdge.source)?.name ?? selectedEdge.source}
-            targetName={nodesById.get(selectedEdge.target)?.name ?? selectedEdge.target}
+      <AnimatePresence>
+        {selectedEdge && !selectedNode && (
+          <Sheet
+            key={`edge-${selectedEdge.id}`}
+            open
             onClose={() => setSelectedEdgeId(null)}
-          />
-        </div>
-      )}
+            label="Connection details"
+            side="bottom"
+            className="absolute inset-x-0 bottom-0 z-20 px-4"
+          >
+            <EdgePanel
+              edge={selectedEdge}
+              sourceName={nodesById.get(selectedEdge.source)?.name ?? selectedEdge.source}
+              targetName={nodesById.get(selectedEdge.target)?.name ?? selectedEdge.target}
+              onClose={() => setSelectedEdgeId(null)}
+            />
+          </Sheet>
+        )}
+      </AnimatePresence>
 
       {/* Simulator — left overlay */}
-      {simOpen && (
-        <div className="absolute left-0 top-0 z-20 h-full">
-          <SimulatorPanel
-            simulating={simulating}
-            items={cascadeItems}
-            onSimulate={handleSimulate}
-            onReset={handleResetSim}
+      <AnimatePresence>
+        {simOpen && (
+          <Sheet
+            key="simulator"
+            open
             onClose={() => setSimOpen(false)}
-          />
-        </div>
-      )}
+            label="Scenario simulator"
+            side="right"
+            className="absolute left-0 top-0 z-20 h-full"
+          >
+            <SimulatorPanel
+              simulating={simulating}
+              items={cascadeItems}
+              onSimulate={handleSimulate}
+              onReset={handleResetSim}
+              onClose={() => setSimOpen(false)}
+            />
+          </Sheet>
+        )}
+      </AnimatePresence>
 
       {/* Toast */}
       <div className="absolute bottom-20 right-4 z-30">
-        <Toast
-          message={toast?.message ?? null}
-          kind={toast?.kind ?? 'info'}
-          onDismiss={dismissToast}
-        />
+        <Toast />
       </div>
 
-      {/* Loading */}
-      {loading && !world && (
-        <div className="absolute inset-0 z-40 grid place-items-center bg-void/80 backdrop-blur-sm">
-          <div className="w-full max-w-sm px-6 text-center">
-            <p className="text-[28px] font-bold tracking-[-0.02em]">GENESIS</p>
-            <div className="skeleton-shimmer mt-6 h-2 w-full rounded-full" />
-            <div className="mt-6 space-y-2 text-left">
-              <p className="animate-fade-in text-[13px] text-muted">
-                Seeding the universe…
-              </p>
-              <p
-                className="animate-fade-in text-[13px] text-muted"
-                style={{ animationDelay: '600ms' }}
-              >
-                Categories blooming…
-              </p>
-              <p
-                className="animate-fade-in text-[13px] text-muted"
-                style={{ animationDelay: '1200ms' }}
-              >
-                Weaving connections…
-              </p>
-            </div>
-          </div>
+      {/* Generation sequence — the staged world birth.
+          Always mounted: its internal AnimatePresence plays the blur-fade
+          exit when the phase reaches "ready". */}
+      <GenerationSequence />
+
+      {/* Snapshot loading — lightweight chip, the sequence already ran */}
+      {introDone && loading && world && (
+        <div className="absolute left-1/2 top-4 z-30 -translate-x-1/2">
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 rounded-full border border-line bg-surface/90 px-4 py-2 font-mono text-[11px] text-muted backdrop-blur-md"
+          >
+            <Loader2 size={12} aria-hidden="true" className="animate-spin text-gold" />
+            Loading {year}…
+          </motion.div>
         </div>
       )}
 

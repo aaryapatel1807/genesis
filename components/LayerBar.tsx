@@ -1,6 +1,9 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
 import { LAYER_ORDER, type Layer } from '@/lib/types';
+import { cn } from '@/lib/cn';
+import { DURATION, GENESIS_EASE } from '@/lib/motion';
 
 interface LayerBarProps {
   active: Set<Layer>;
@@ -8,6 +11,8 @@ interface LayerBarProps {
 }
 
 export function LayerBar({ active, onToggle }: LayerBarProps) {
+  const reduced = useReducedMotion() ?? false;
+
   return (
     <div
       role="group"
@@ -17,19 +22,32 @@ export function LayerBar({ active, onToggle }: LayerBarProps) {
       {LAYER_ORDER.map((layer) => {
         const isActive = active.has(layer);
         return (
-          <button
+          <motion.button
             key={layer}
             type="button"
             aria-pressed={isActive}
             onClick={() => onToggle(layer)}
-            className={`whitespace-nowrap rounded-full px-4 py-1.5 text-[12px] font-medium transition-colors ${
-              isActive
-                ? 'bg-gold/15 text-gold shadow-[0_0_12px_rgba(245,185,66,0.35)]'
-                : 'text-muted hover:text-ink'
-            }`}
+            whileTap={{ scale: 0.94 }}
+            transition={{ duration: DURATION.micro, ease: GENESIS_EASE }}
+            className={cn(
+              'relative whitespace-nowrap rounded-full px-4 py-1.5 text-[12px] font-medium transition-colors',
+              isActive ? 'text-gold' : 'text-muted hover:text-ink',
+            )}
           >
-            {layer}
-          </button>
+            {isActive && (
+              <motion.span
+                layoutId="layer-active-pill"
+                aria-hidden="true"
+                transition={
+                  reduced
+                    ? { duration: 0.01 }
+                    : { duration: DURATION.base, ease: GENESIS_EASE }
+                }
+                className="absolute inset-0 rounded-full bg-gold/15 shadow-[0_0_12px_rgba(245,185,66,0.35)]"
+              />
+            )}
+            <span className="relative z-10">{layer}</span>
+          </motion.button>
         );
       })}
     </div>

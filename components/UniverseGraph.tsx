@@ -30,10 +30,24 @@ export interface UniverseGraphProps {
   pulsing: Set<string>;
   onNodeExpand?: (node: GNode) => void;
   onBackgroundClick?: () => void;
+  /**
+   * Generation-sequence reveal. While false the canvas stays dark (the
+   * GenerationSequence overlay owns the screen); flipping to true starts
+   * the choreographed bloom: nodes stagger in, edges draw, camera zooms.
+   * Defaults to true so snapshot swaps keep the existing bloom behavior.
+   */
+  introReveal?: boolean;
+  /**
+   * Interaction gate — false until the sequence reaches "ready".
+   * Defaults to true.
+   */
+  interactive?: boolean;
 }
 
 export interface UniverseGraphHandle {
   flyTo: (nodeId: string) => void;
+  /** Cinematic camera descent used by the generation sequence. */
+  introZoom: () => void;
 }
 
 type Shape = 'circle' | 'square' | 'diamond' | 'triangle' | 'star';
@@ -47,11 +61,33 @@ function shapeOf(type: NodeType): Shape {
   return 'circle';
 }
 
-const EDGE_STYLE: Record<Strength, { color: string; alpha: number; width: number }> = {
-  strong: { color: '#4ade80', alpha: 0.6, width: 2.5 },
-  medium: { color: '#f5b942', alpha: 0.5, width: 1.75 },
-  weak: { color: '#ef4444', alpha: 0.35, width: 1 },
+const EDGE_TOKEN: Record<Strength, { token: string; fallback: string; alpha: number; width: number }> = {
+  strong: { token: '--n-startup', fallback: '#4ade80', alpha: 0.6, width: 2.5 },
+  medium: { token: '--gold', fallback: '#f5b942', alpha: 0.5, width: 1.75 },
+  weak: { token: '--red', fallback: '#ef4444', alpha: 0.35, width: 1 },
 };
+
+const edgeColorCache = new Map<string, string>();
+
+/**
+ * Edge colors resolve from the design tokens (globals.css) so the canvas
+ * never carries hardcoded hex — one cache per token, SSR-safe fallback.
+ */
+function edgeStyle(strength: Strength): { color: string; alpha: number; width: number } {
+  const spec = EDGE_TOKEN[strength] ?? EDGE_TOKEN.medium;
+  let color = edgeColorCache.get(spec.token);
+  if (!color) {
+    color = spec.fallback;
+    if (typeof document !== 'undefined') {
+      const v = getComputedStyle(document.documentElement)
+        .getPropertyValue(spec.token)
+        .trim();
+      if (v) color = v;
+    }
+    edgeColorCache.set(spec.token, color);
+  }
+  return { color, alpha: spec.alpha, width: spec.width };
+}
 
 interface PaintNode extends ForceGraphNode {
   name: string;
@@ -125,6 +161,8 @@ const easeOutCubic = (v: number): number => 1 - Math.pow(1 - v, 3);
 export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>(
   function UniverseGraph(props, ref) {
     const { nodes, edges, onNodeClick, onEdgeClick, dimmed, pulsing } = props;
+    const introReveal = props.introReveal ?? true;
+    const interactive = props.interactive ?? true;
 
     const wrapRef = useRef<HTMLDivElement>(null);
     const graphRef = useRef<ForceGraph2DMethods | null>(null);
@@ -148,8 +186,11 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     const callbacksRef = useRef({ onNodeClick, onEdgeClick, onNodeExpand: props.onNodeExpand, onBackgroundClick: props.onBackgroundClick });
     callbacksRef.current = { onNodeClick, onEdgeClick, onNodeExpand: props.onNodeExpand, onBackgroundClick: props.onBackgroundClick };
     const bloomStartAtRef = useRef(new Map<string, number>()); // id -> absolute start time
+    const linkRevealAtRef = useRef(new Map<string, number>()); // edge id -> absolute draw start
     const reducedMotionRef = useRef(false);
     const prevIdsRef = useRef<Set<string>>(new Set());
+    const introRevealRef = useRef(introReveal);
+    introRevealRef.current = introReveal;
 
     useEffect(() => {
       reducedMotionRef.current = window.matchMedia(
@@ -171,34 +212,90 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       return () => ro.disconnect();
     }, []);
 
-    // Bloom-in: stagger newly appearing nodes (fresh world = all, expansion =
-    // only the grafted ones). Per-node absolute start times are MERGED into the
-    // existing map — pre-existing nodes keep their original timing (progress
-    // 1) instead of dissolving on every expansion. Ids that left the graph
-    // (snapshot swaps) are pruned so the map can't grow unboundedly.
-    // Reduced motion: skip to final state.
-    useEffect(() => {
-      const ids = nodes.map((n) => n.id);
+    const edgesRef = useRef(edges);
+    edgesRef.current = edges;
+    const bloomTimerRef = useRef<number | null>(null);
+    const revealedOnceRef = useRef(introReveal);
+
+    /**
+     * Records staggered bloom start times for newly added nodes and
+     * staggered draw times for edges. Merges into the existing maps so
+     * pre-existing nodes keep progress 1; prunes ids that left the graph.
+     * Returns the milliseconds until the choreography settles.
+     */
+    const recordReveal = (now0: number): number => {
+      const ids = nodesRef.current.map((n) => n.id);
+      const edgeIds = edgesRef.current.map((e) => e.id);
+      const current = new Set(ids);
       const prev = prevIdsRef.current;
       const added = ids.filter((id) => !prev.has(id));
-      prevIdsRef.current = new Set(ids);
-      if (added.length === 0) return;
-      const now0 = performance.now();
-      const current = new Set(ids);
+      prevIdsRef.current = current;
+
       const starts = new Map(bloomStartAtRef.current);
       for (const id of starts.keys()) {
         if (!current.has(id)) starts.delete(id);
       }
       added.forEach((id, i) => starts.set(id, now0 + Math.min(i * 40, 2500)));
       bloomStartAtRef.current = starts;
+
+      const linkStarts = new Map(linkRevealAtRef.current);
+      const currentEdges = new Set(edgeIds);
+      for (const id of linkStarts.keys()) {
+        if (!currentEdges.has(id)) linkStarts.delete(id);
+      }
+      edgeIds.forEach((id, i) => {
+        if (!linkStarts.has(id)) {
+          linkStarts.set(id, now0 + 500 + Math.min(i * 10, 1600));
+        }
+      });
+      linkRevealAtRef.current = linkStarts;
+
       if (reducedMotionRef.current) {
         setBloomActive(false);
-        return;
+        return 0;
       }
       setBloomActive(true);
-      const maxDelay = Math.min((added.length - 1) * 40, 2500);
-      const timer = window.setTimeout(() => setBloomActive(false), maxDelay + 700);
-      return () => window.clearTimeout(timer);
+      return Math.min(Math.max(added.length - 1, 0) * 40, 2500) + 2300;
+    };
+
+    const scheduleBloomEnd = (settleMs: number): void => {
+      if (bloomTimerRef.current !== null) {
+        window.clearTimeout(bloomTimerRef.current);
+      }
+      bloomTimerRef.current = window.setTimeout(() => {
+        setBloomActive(false);
+        bloomTimerRef.current = null;
+      }, settleMs);
+    };
+
+    useEffect(
+      () => () => {
+        if (bloomTimerRef.current !== null) {
+          window.clearTimeout(bloomTimerRef.current);
+        }
+      },
+      [],
+    );
+
+    // Generation-sequence handover: the FIRST time introReveal flips true,
+    // choreograph the full bloom (nodes stagger, edges draw after).
+    useEffect(() => {
+      if (!introReveal || revealedOnceRef.current) return;
+      revealedOnceRef.current = true;
+      scheduleBloomEnd(recordReveal(performance.now()));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [introReveal]);
+
+    // Bloom-in for later changes (expansions, snapshot swaps): stagger only
+    // the newly appearing nodes. Deferred while the sequence owns the screen.
+    useEffect(() => {
+      if (!introRevealRef.current) return;
+      const ids = nodes.map((n) => n.id);
+      const prev = prevIdsRef.current;
+      const added = ids.filter((id) => !prev.has(id));
+      if (added.length === 0) return;
+      scheduleBloomEnd(recordReveal(performance.now()));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodes]);
 
     // Repaint loop while bloom or simulation pulse is active.
@@ -226,6 +323,18 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           g.centerAt(px, py, 1400);
           g.zoom(2.4, 1400);
         },
+        introZoom(): void {
+          // Cinematic descent for the generation sequence: start wide and
+          // far, then settle into the universe. Reduced motion: jump cut.
+          const g = graphRef.current;
+          if (!g) return;
+          if (reducedMotionRef.current) {
+            g.zoom(1.05, 0);
+            return;
+          }
+          g.zoom(0.45, 0);
+          g.zoom(1.05, 2200);
+        },
       }),
       [],
     );
@@ -252,6 +361,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       ctx: CanvasRenderingContext2D,
       globalScale: number,
     ): void => {
+      // The generation sequence owns the screen until reveal.
+      if (!introRevealRef.current) return;
       const n = raw as unknown as PaintNode;
       if (typeof n.x !== 'number' || typeof n.y !== 'number') return;
 
@@ -317,6 +428,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       ctx: CanvasRenderingContext2D,
       globalScale: number,
     ): void => {
+      // The generation sequence owns the screen until reveal.
+      if (!introRevealRef.current) return;
       const e = raw as unknown as PaintLink;
       const sId = endpointId(e.source);
       const tId = endpointId(e.target);
@@ -325,17 +438,24 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       if (!sObj || !tObj) return;
       if (typeof sObj.x !== 'number' || typeof tObj.x !== 'number') return;
 
-      const style = EDGE_STYLE[e.strength] ?? EDGE_STYLE.medium;
+      const style = edgeStyle(e.strength);
       const isDimmed =
         (sId !== null && dimmedRef.current.has(sId)) ||
         (tId !== null && dimmedRef.current.has(tId));
 
       ctx.save();
       const nowL = performance.now();
-      const linkProgress = Math.min(
-        bloomProgress(sId ?? '', nowL),
-        bloomProgress(tId ?? '', nowL),
-      );
+      const reducedL = reducedMotionRef.current;
+      // Edges draw in AFTER their endpoints bloom: per-edge staged start.
+      const edgeStart = linkRevealAtRef.current.get(e.id) ?? 0;
+      const drawProgress = reducedL
+        ? 1
+        : easeOutCubic(clamp01((nowL - edgeStart) / 600));
+      const linkProgress =
+        Math.min(
+          bloomProgress(sId ?? '', nowL),
+          bloomProgress(tId ?? '', nowL),
+        ) * drawProgress;
       ctx.globalAlpha = isDimmed ? 0.15 : style.alpha * linkProgress;
       ctx.strokeStyle = style.color;
       ctx.lineWidth = style.width / globalScale;
@@ -431,8 +551,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           onBackgroundClick={() => {
             callbacksRef.current.onBackgroundClick?.();
           }}
-          enableZoomPanInteraction
-          enableNodeDrag
+          enableZoomPanInteraction={interactive}
+          enableNodeDrag={interactive}
           cooldownTime={8000}
           warmupTicks={40}
         />

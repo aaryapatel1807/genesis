@@ -1,5 +1,6 @@
 'use client';
 
+import { ExternalLink, X } from 'lucide-react';
 import type { GEdge, Strength } from '@/lib/types';
 
 interface EdgePanelProps {
@@ -21,7 +22,7 @@ export function EdgePanel({ edge, sourceName, targetName, onClose }: EdgePanelPr
   return (
     <div
       aria-label={`Why ${sourceName} and ${targetName} are connected`}
-      className="animate-sheet-bottom pointer-events-auto max-h-[40vh] w-full max-w-3xl overflow-y-auto rounded-t-[14px] border-t border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      className="pointer-events-auto mx-auto max-h-[40vh] w-full max-w-3xl overflow-y-auto rounded-t-[14px] border-t border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -45,19 +46,9 @@ export function EdgePanel({ edge, sourceName, targetName, onClose }: EdgePanelPr
           type="button"
           onClick={onClose}
           aria-label="Close panel"
-          className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          className="rounded-md p-1.5 text-muted transition-all hover:scale-110 hover:bg-surface-2 hover:text-ink active:scale-95"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            aria-hidden="true"
-          >
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -83,17 +74,7 @@ export function EdgePanel({ edge, sourceName, targetName, onClose }: EdgePanelPr
                     className="inline-flex items-center gap-1 text-teal hover:underline"
                   >
                     source
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      aria-hidden="true"
-                    >
-                      <path d="M10 6V3h3v3M13 3L7 9M11 5H5a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V9" />
-                    </svg>
+                    <ExternalLink size={12} aria-hidden="true" />
                   </a>
                 )}
               </p>

@@ -1,11 +1,14 @@
 {
   "dependencies": {
+    "framer-motion": "^14.0.0",
     "groq-sdk": "^0.9.1",
+    "lucide-react": "^1.52.0",
     "next": "14.2.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-force-graph-2d": "^1.25.4",
-    "serpapi": "^2.1.0"
+    "serpapi": "^2.1.0",
+    "zustand": "^5.0.15"
   },
   "description": "Genesis — Ask anything. Watch a world emerge. Cinematic AI-ecosystem knowledge universe.",
   "devDependencies": {

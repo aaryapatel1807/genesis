@@ -1,5 +1,8 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
+import { DURATION, GENESIS_EASE } from '@/lib/motion';
+
 interface RealityMeterProps {
   confidence: number;
   freshness: string;
@@ -9,6 +12,7 @@ interface RealityMeterProps {
 export function RealityMeter({ confidence, freshness, sources }: RealityMeterProps) {
   // confidence is a 0–100 scale from lib/score.ts (never a 0–1 fraction).
   const pct = Math.round(Math.max(0, Math.min(100, confidence)));
+  const reduced = useReducedMotion() ?? false;
   const barColor =
     pct >= 70 ? 'var(--teal)' : pct >= 40 ? 'var(--gold)' : 'var(--red)';
 
@@ -29,9 +33,12 @@ export function RealityMeter({ confidence, freshness, sources }: RealityMeterPro
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div
-          className="h-full rounded-full transition-[width] duration-500"
-          style={{ width: `${pct}%`, background: barColor }}
+        <motion.div
+          className="h-full rounded-full"
+          initial={reduced ? { width: `${pct}%` } : { width: '0%' }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: DURATION.slow, ease: GENESIS_EASE }}
+          style={{ background: barColor }}
         />
       </div>
       <p className="mt-2 text-[11px] text-muted">

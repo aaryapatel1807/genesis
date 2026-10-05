@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
+import { ExternalLink, Plus, X } from 'lucide-react';
 import {
   NODE_COLORS,
   type Connection,
   type GNode,
 } from '@/lib/types';
 import { RealityMeter } from './RealityMeter';
+import { Button } from './ui/button';
 
 interface NodePanelProps {
   node: GNode;
@@ -50,7 +52,7 @@ export function NodePanel({
   return (
     <aside
       aria-label={`Details for ${node.name}`}
-      className="animate-sheet-right pointer-events-auto flex h-full w-[340px] max-w-[92vw] flex-col overflow-y-auto rounded-l-[14px] border-l border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      className="pointer-events-auto flex h-full w-[340px] max-w-[92vw] flex-col overflow-y-auto rounded-l-[14px] border-l border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -76,19 +78,9 @@ export function NodePanel({
           type="button"
           onClick={onClose}
           aria-label="Close panel"
-          className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          className="rounded-md p-1.5 text-muted transition-all hover:scale-110 hover:bg-surface-2 hover:text-ink active:scale-95"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            aria-hidden="true"
-          >
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -156,18 +148,7 @@ export function NodePanel({
                   <span className="truncate">
                     {s.engine} · {s.date}
                   </span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                    className="shrink-0"
-                  >
-                    <path d="M10 6V3h3v3M13 3L7 9M11 5H5a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V9" />
-                  </svg>
+                  <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
                 </a>
               </li>
             ))}
@@ -181,25 +162,17 @@ export function NodePanel({
             No further entities found in live search.
           </p>
         )}
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="md"
           onClick={() => onExpand(node.id)}
-          disabled={expanding || budgetExhausted}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-4 py-3 text-[14px] font-semibold text-void transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          loading={expanding}
+          disabled={budgetExhausted}
+          icon={<Plus size={16} aria-hidden="true" />}
+          className="w-full"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            aria-hidden="true"
-          >
-            <path d="M8 3v10M3 8h10" />
-          </svg>
           {expanding ? 'Expanding…' : 'Expand'}
-        </button>
+        </Button>
         {budgetExhausted && (
           <p className="mt-2 text-[11px] text-amber-300">
             Live expansion paused — search budget exhausted. Showing cached

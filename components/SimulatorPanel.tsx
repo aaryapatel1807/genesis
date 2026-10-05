@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { X, Zap } from 'lucide-react';
 import type { SimCascadeItem } from '@/lib/types';
+import { Button } from './ui/button';
+import { useMotionVariants } from '@/lib/motion';
 
 interface SimulatorPanelProps {
   simulating: boolean;
@@ -26,6 +30,7 @@ export function SimulatorPanel({
 }: SimulatorPanelProps) {
   const [scenario, setScenario] = useState('');
   const active = simulating || items.length > 0;
+  const { container, enterUp } = useMotionVariants();
 
   const submit = (): void => {
     const trimmed = scenario.trim();
@@ -36,7 +41,7 @@ export function SimulatorPanel({
   return (
     <aside
       aria-label="Scenario simulator"
-      className="animate-sheet-right pointer-events-auto flex h-full w-[340px] max-w-[92vw] flex-col overflow-y-auto rounded-r-[14px] border-r border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      className="pointer-events-auto flex h-full w-[340px] max-w-[92vw] flex-col overflow-y-auto rounded-r-[14px] border-r border-line bg-surface p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
       {/* Undismissable SIMULATION banner — clears only via Reset */}
       {active && (
@@ -67,19 +72,9 @@ export function SimulatorPanel({
           type="button"
           onClick={onClose}
           aria-label="Close simulator"
-          className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          className="rounded-md p-1.5 text-muted transition-all hover:scale-110 hover:bg-surface-2 hover:text-ink active:scale-95"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            aria-hidden="true"
-          >
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -104,35 +99,33 @@ export function SimulatorPanel({
         <span className="font-mono">{scenario.length}/200</span>
       </div>
 
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        size="md"
         onClick={submit}
-        disabled={simulating || scenario.trim().length === 0}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-4 py-3 text-[14px] font-semibold text-void transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+        loading={simulating}
+        disabled={scenario.trim().length === 0}
+        icon={<Zap size={16} aria-hidden="true" />}
+        className="mt-3 w-full"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          aria-hidden="true"
-        >
-          <path d="M9 2L4 9h3l-1 5 5-7H8l1-5z" strokeLinejoin="round" />
-        </svg>
         {simulating ? 'Simulating…' : 'Run simulation'}
-      </button>
+      </Button>
 
       {items.length > 0 && (
         <div className="mt-5 border-t border-line pt-4">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
             Cascade ({items.length})
           </h3>
-          <ol className="mt-3 space-y-2">
+          <motion.ol
+            initial="hidden"
+            animate="show"
+            variants={container}
+            className="mt-3 space-y-2"
+          >
             {items.map((c, i) => (
-              <li
+              <motion.li
                 key={`${c.nodeId}-${i}`}
+                variants={enterUp}
                 className="rounded-lg border border-line bg-surface-2 p-3"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -149,9 +142,9 @@ export function SimulatorPanel({
                 <p className="mt-1 text-[13px] leading-relaxed text-muted">
                   {c.effect}
                 </p>
-              </li>
+              </motion.li>
             ))}
-          </ol>
+          </motion.ol>
         </div>
       )}
 

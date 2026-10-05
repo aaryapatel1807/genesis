@@ -1,5 +1,9 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
+import { cn } from '@/lib/cn';
+import { DURATION, GENESIS_EASE } from '@/lib/motion';
+
 interface TimeSliderProps {
   year: number;
   onChange: (year: number) => void;
@@ -14,6 +18,7 @@ const STOPS: { year: number; caption: string }[] = [
 
 export function TimeSlider({ year, onChange }: TimeSliderProps) {
   const activeCaption = STOPS.find((s) => s.year === year)?.caption ?? '';
+  const reduced = useReducedMotion() ?? false;
 
   return (
     <div className="flex max-w-[92vw] flex-col items-center gap-2">
@@ -25,20 +30,33 @@ export function TimeSlider({ year, onChange }: TimeSliderProps) {
         {STOPS.map((stop) => {
           const isActive = stop.year === year;
           return (
-            <button
+            <motion.button
               key={stop.year}
               type="button"
               aria-pressed={isActive}
               aria-label={`${stop.year} — ${stop.caption}`}
               onClick={() => onChange(stop.year)}
-              className={`rounded-full px-4 py-1.5 font-mono text-[12px] transition-colors ${
-                isActive
-                  ? 'bg-gold text-void shadow-[0_0_12px_rgba(245,185,66,0.45)]'
-                  : 'text-muted hover:text-ink'
-              }`}
+              whileTap={{ scale: 0.94 }}
+              transition={{ duration: DURATION.micro, ease: GENESIS_EASE }}
+              className={cn(
+                'relative rounded-full px-4 py-1.5 font-mono text-[12px] transition-colors',
+                isActive ? 'text-void' : 'text-muted hover:text-ink',
+              )}
             >
-              {stop.year}
-            </button>
+              {isActive && (
+                <motion.span
+                  layoutId="time-active-pill"
+                  aria-hidden="true"
+                  transition={
+                    reduced
+                      ? { duration: 0.01 }
+                      : { duration: DURATION.base, ease: GENESIS_EASE }
+                  }
+                  className="absolute inset-0 rounded-full bg-gold shadow-[0_0_12px_rgba(245,185,66,0.45)]"
+                />
+              )}
+              <span className="relative z-10 font-semibold">{stop.year}</span>
+            </motion.button>
           );
         })}
       </div>
