@@ -15,6 +15,6 @@ export async function GET(): Promise<NextResponse> {
       },
     });
   } catch {
-    return NextResponse.json({ error: 'world not built yet' }, { status: 500 });
+    return NextResponse.json({ error: 'world not built yet', code: 'WORLD_NOT_BUILT' }, { status: 500 });
   }
 }

@@ -27,15 +27,16 @@ export const NODE_COLORS: Record<NodeType, string> = {
   law: '#fb7185',
 };
 
-export type Layer = 'Companies' | 'Research' | 'News' | 'Jobs' | 'Funding' | 'Products';
+export type Layer = 'Companies' | 'Research' | 'News' | 'Jobs' | 'Funding' | 'Products' | 'Policy';
 
 export const LAYERS: Record<Layer, NodeType[]> = {
   Companies: ['company', 'startup', 'funder'],
-  Research: ['researcher', 'university', 'paper', 'technology'],
+  Research: ['researcher', 'university', 'paper', 'technology', 'patent'],
   News: ['event'],
   Jobs: ['job'],
   Funding: ['funder', 'startup'],
   Products: ['product'],
+  Policy: ['country', 'government', 'law'],
 };
 
 export const LAYER_ORDER: Layer[] = [
@@ -45,6 +46,7 @@ export const LAYER_ORDER: Layer[] = [
   'Jobs',
   'Funding',
   'Products',
+  'Policy',
 ];
 
 // --- API contracts (frontend <-> /api/* routes) -----------------------------

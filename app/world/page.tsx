@@ -318,7 +318,7 @@ function WorldView() {
           persistSessionId(data.sessionId);
         }
         setCredits((c) => ({
-          used: c.used + data.searchesUsed,
+          used: c.used + (typeof data.searchesUsed === 'number' ? data.searchesUsed : 0),
           total: c.total,
         }));
         const freshNodes = data.addedNodes.filter((n) => !nodesById.has(n.id));
@@ -448,9 +448,10 @@ function WorldView() {
         )}
       </div>
 
-      {/* World caption */}
+      {/* World caption — hidden on small screens where it overlaps the
+          LayerBar and action cluster (390px analysis) */}
       {world && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2">
+        <div className="pointer-events-none absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 sm:block">
           <p className="whitespace-nowrap font-mono text-[11px] text-muted">
             {world.meta.topic} · {world.meta.node_count} entities ·{' '}
             {world.meta.edge_count} connections

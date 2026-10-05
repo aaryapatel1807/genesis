@@ -73,4 +73,20 @@ export class PostgresAdapter implements DbAdapter {
     void entry;
     return this.fail();
   }
+
+  async getSessionBudget(token: string): Promise<number> {
+    void token;
+    // v2 SQL: SELECT expansions FROM sessions WHERE token = $1
+    return this.fail();
+  }
+
+  async recordSessionBudget(token: string, n: number): Promise<void> {
+    void token;
+    void n;
+    // v2 SQL: INSERT INTO sessions (token, expansions, expires_at)
+    //   VALUES ($1, $2, now() + interval '24 hours')
+    //   ON CONFLICT (token) DO UPDATE SET expansions = sessions.expansions + $2,
+    //   last_seen_at = now()
+    return this.fail();
+  }
 }

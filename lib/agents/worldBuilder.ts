@@ -72,11 +72,34 @@ export async function buildWorldFromResults(
   const extraction = await extractEntities(allResults, topic);
   const verified = verifyRelations(extraction.relations, extraction.entities);
   const edges = attachEvidence(verified, allResults);
-  const nodes = toNodes(extraction.entities, allResults);
-  return {
-    nodes: dedupeNodes([], nodes),
-    edges: dedupeEdges([], edges),
+  const nodes = dedupeNodes([], toNodes(extraction.entities, allResults));
+  // Reconcile edge endpoints against the nodes that actually survived dedupe
+  // (same latent flaw as the expand-route graft: dedupe keys on normalized
+  // names while edge ids are slug-built from exact relation strings).
+  const idByName = new Map<string, string>();
+  for (const n of nodes) {
+    const key = normalizeName(n.name);
+    if (!idByName.has(key)) idByName.set(key, n.id);
+  }
+  const keyByGraftId = new Map<string, string>();
+  const register = (name: string) => keyByGraftId.set(nodeIdFor(name), normalizeName(name));
+  for (const e of extraction.entities) register(e.name);
+  for (const r of extraction.relations) {
+    register(r.source);
+    register(r.target);
+  }
+  const alive = new Set<string>(nodes.map((n) => n.id));
+  const resolveId = (graftId: string): string | null => {
+    if (alive.has(graftId)) return graftId;
+    const key = keyByGraftId.get(graftId);
+    return key === undefined ? null : (idByName.get(key) ?? null);
   };
+  const resolved = edges.flatMap((e) => {
+    const source = resolveId(e.source);
+    const target = resolveId(e.target);
+    return source !== null && target !== null ? [{ ...e, source, target }] : [];
+  });
+  return { nodes, edges: dedupeEdges([], resolved) };
 }
 
 // --- Expansion cache: query -> extracted entities (7d TTL, via lib/cache) ---

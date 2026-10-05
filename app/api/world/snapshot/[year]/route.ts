@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: { year: string } }
 ): Promise<NextResponse> {
   if (!YEARS.has(params.year)) {
-    return NextResponse.json({ error: 'unknown snapshot' }, { status: 404 });
+    return NextResponse.json({ error: 'unknown snapshot', code: 'UNKNOWN_SNAPSHOT' }, { status: 404 });
   }
   try {
     const world = await getDb().getSnapshot(params.year);
@@ -24,6 +24,6 @@ export async function GET(
       },
     });
   } catch {
-    return NextResponse.json({ error: 'snapshot not built yet' }, { status: 404 });
+    return NextResponse.json({ error: 'snapshot not built yet', code: 'SNAPSHOT_NOT_BUILT' }, { status: 404 });
   }
 }

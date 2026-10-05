@@ -147,8 +147,7 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     nodesRef.current = nodes;
     const callbacksRef = useRef({ onNodeClick, onEdgeClick, onNodeExpand: props.onNodeExpand, onBackgroundClick: props.onBackgroundClick });
     callbacksRef.current = { onNodeClick, onEdgeClick, onNodeExpand: props.onNodeExpand, onBackgroundClick: props.onBackgroundClick };
-    const bloomStartRef = useRef(0);
-    const bloomDelaysRef = useRef(new Map<string, number>());
+    const bloomStartAtRef = useRef(new Map<string, number>()); // id -> absolute start time
     const reducedMotionRef = useRef(false);
     const prevIdsRef = useRef<Set<string>>(new Set());
 
@@ -173,21 +172,29 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     }, []);
 
     // Bloom-in: stagger newly appearing nodes (fresh world = all, expansion =
-    // only the grafted ones). Reduced motion: skip to final state.
+    // only the grafted ones). Per-node absolute start times are MERGED into the
+    // existing map — pre-existing nodes keep their original timing (progress
+    // 1) instead of dissolving on every expansion. Ids that left the graph
+    // (snapshot swaps) are pruned so the map can't grow unboundedly.
+    // Reduced motion: skip to final state.
     useEffect(() => {
       const ids = nodes.map((n) => n.id);
       const prev = prevIdsRef.current;
       const added = ids.filter((id) => !prev.has(id));
       prevIdsRef.current = new Set(ids);
       if (added.length === 0) return;
-      const delays = new Map<string, number>();
-      added.forEach((id, i) => delays.set(id, Math.min(i * 40, 2500)));
-      bloomDelaysRef.current = delays;
+      const now0 = performance.now();
+      const current = new Set(ids);
+      const starts = new Map(bloomStartAtRef.current);
+      for (const id of starts.keys()) {
+        if (!current.has(id)) starts.delete(id);
+      }
+      added.forEach((id, i) => starts.set(id, now0 + Math.min(i * 40, 2500)));
+      bloomStartAtRef.current = starts;
       if (reducedMotionRef.current) {
         setBloomActive(false);
         return;
       }
-      bloomStartRef.current = performance.now();
       setBloomActive(true);
       const maxDelay = Math.min((added.length - 1) * 40, 2500);
       const timer = window.setTimeout(() => setBloomActive(false), maxDelay + 700);
@@ -231,6 +238,15 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       [nodes, edges],
     );
 
+    // Bloom progress for one node id: ids with no start entry (pre-existing
+    // nodes) are fully visible. Shared by paintNode and paintLink so a link
+    // fades in together with its endpoint nodes instead of floating detached.
+    const bloomProgress = (id: string, now: number): number => {
+      if (reducedMotionRef.current) return 1;
+      const startAt = bloomStartAtRef.current.get(id) ?? 0; // 0 = long past -> progress 1
+      return easeOutCubic(clamp01((now - startAt) / 600));
+    };
+
     const paintNode = (
       raw: ForceGraphNode,
       ctx: CanvasRenderingContext2D,
@@ -248,9 +264,7 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
 
       // Bloom progress (staggered per node, eased)
       const now = performance.now();
-      const delay = bloomDelaysRef.current.get(id) ?? 0;
-      let progress = reduced ? 1 : clamp01((now - bloomStartRef.current - delay) / 600);
-      progress = easeOutCubic(progress);
+      const progress = bloomProgress(id, now);
 
       const baseR = 3 + Math.sqrt(Math.max(n.influence, 0));
       const r = baseR * (0.5 + 0.5 * progress) * (isHot ? 1.15 : 1);
@@ -317,7 +331,12 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         (tId !== null && dimmedRef.current.has(tId));
 
       ctx.save();
-      ctx.globalAlpha = isDimmed ? 0.15 : style.alpha;
+      const nowL = performance.now();
+      const linkProgress = Math.min(
+        bloomProgress(sId ?? '', nowL),
+        bloomProgress(tId ?? '', nowL),
+      );
+      ctx.globalAlpha = isDimmed ? 0.15 : style.alpha * linkProgress;
       ctx.strokeStyle = style.color;
       ctx.lineWidth = style.width / globalScale;
       ctx.shadowColor = style.color;

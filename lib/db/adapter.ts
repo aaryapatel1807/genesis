@@ -38,4 +38,14 @@ export interface DbAdapter {
   /** SerpApi credit ledger: limit + spend + per-call log. */
   getCreditLedger(): Promise<CreditLedger>;
   recordCreditUse(entry: CreditLogEntry): Promise<void>;
+
+  /**
+   * Per-session expansion budget: fresh SerpApi searches used by this
+   * session token. Implementations must be DURABLE — a process-local Map
+   * resets on every serverless cold start, which made the ≤10/session cap
+   * unenforceable on the Vercel deploy target. JSON: data/session-budgets.json;
+   * Postgres: sessions(token, expansions).
+   */
+  getSessionBudget(token: string): Promise<number>;
+  recordSessionBudget(token: string, n: number): Promise<void>;
 }

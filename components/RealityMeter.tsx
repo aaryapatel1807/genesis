@@ -7,9 +7,10 @@ interface RealityMeterProps {
 }
 
 export function RealityMeter({ confidence, freshness, sources }: RealityMeterProps) {
-  const pct = Math.round(Math.max(0, Math.min(1, confidence)) * 100);
+  // confidence is a 0–100 scale from lib/score.ts (never a 0–1 fraction).
+  const pct = Math.round(Math.max(0, Math.min(100, confidence)));
   const barColor =
-    confidence >= 0.7 ? 'var(--teal)' : confidence >= 0.4 ? 'var(--gold)' : 'var(--red)';
+    pct >= 70 ? 'var(--teal)' : pct >= 40 ? 'var(--gold)' : 'var(--red)';
 
   return (
     <div aria-label={`Reality meter: ${pct}% confidence`}>

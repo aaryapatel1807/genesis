@@ -10,6 +10,10 @@ import type { SimCascade, World } from '@/lib/types';
 
 const SIM_LABEL = 'SIMULATION — AI-generated scenario, not factual prediction.';
 
+/** Every response — including errors — carries the SIMULATION label (contract). */
+const err = (error: string, code: string, status: number): NextResponse =>
+  NextResponse.json({ error, code, label: SIM_LABEL }, { status });
+
 async function loadWorld(): Promise<World | null> {
   try {
     return await getDb().getWorld();
@@ -20,15 +24,18 @@ async function loadWorld(): Promise<World | null> {
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    const body = (await req.json().catch(() => ({}))) as { scenario?: unknown };
+    const parsed: unknown = await req.json().catch(() => ({}));
+    const body = (parsed !== null && typeof parsed === 'object' ? parsed : {}) as {
+      scenario?: unknown;
+    };
     const scenario = sanitizeScenario(typeof body.scenario === 'string' ? body.scenario : '');
     if (!scenario) {
-      return NextResponse.json({ error: 'scenario is required' }, { status: 400 });
+      return err('scenario is required', 'SCENARIO_REQUIRED', 400);
     }
 
     const world = await loadWorld();
     if (!world) {
-      return NextResponse.json({ error: 'world not built yet' }, { status: 500 });
+      return err('world not built yet', 'WORLD_NOT_BUILT', 500);
     }
 
     if (!process.env.GROQ_API_KEY) {
@@ -61,6 +68,6 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
     return NextResponse.json({ scenario, label: SIM_LABEL, ...result });
   } catch {
-    return NextResponse.json({ error: 'simulation failed' }, { status: 500 });
+    return err('simulation failed', 'SIMULATION_FAILED', 500);
   }
 }

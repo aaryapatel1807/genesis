@@ -9,7 +9,7 @@
  * 500/404); the ledger initializes to an in-memory default instead of
  * crashing; log/simulation writes are best-effort.
  */
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getCache, setCache } from '../cache';
 import type {
@@ -27,6 +27,7 @@ const WORLD_PATH = join(DATA_DIR, 'world.json');
 const SNAPSHOT_PATH = (year: string) => join(DATA_DIR, 'snapshots', `${year}.json`);
 const LEDGER_PATH = join(DATA_DIR, 'credit-ledger.json');
 const SIM_LOG_PATH = join(DATA_DIR, 'simulation-log.jsonl');
+const BUDGET_PATH = join(DATA_DIR, 'session-budgets.json');
 
 const DEFAULT_PLAN_LIMIT = 250;
 
@@ -142,7 +143,10 @@ export class JsonAdapter implements DbAdapter {
   async logSimulation(entry: SimulationLog): Promise<void> {
     try {
       await mkdir(DATA_DIR, { recursive: true });
-      await appendFile(SIM_LOG_PATH, JSON.stringify(entry) + '\n', 'utf-8');
+      // Cap raw user text at the 100-char logging budget before it hits disk
+      // (Logging.md: raw user input is PII-adjacent).
+      const capped = { ...entry, scenario: entry.scenario.slice(0, 100) };
+      await appendFile(SIM_LOG_PATH, JSON.stringify(capped) + '\n', 'utf-8');
     } catch {
       // best effort — audit logging must never break a request
     }
@@ -162,6 +166,38 @@ export class JsonAdapter implements DbAdapter {
       await appendFile(LEDGER_PATH, JSON.stringify(entry) + '\n', 'utf-8');
     } catch {
       // best effort — ledger writes must never break a request
+    }
+  }
+
+  private async readBudgets(): Promise<Record<string, number>> {
+    try {
+      const v = await readJson(BUDGET_PATH);
+      if (typeof v === 'object' && v !== null) {
+        const out: Record<string, number> = {};
+        for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+          if (typeof val === 'number' && Number.isFinite(val) && val >= 0) out[k] = Math.floor(val);
+        }
+        return out;
+      }
+    } catch {
+      // missing file -> empty budgets
+    }
+    return {};
+  }
+
+  async getSessionBudget(token: string): Promise<number> {
+    const budgets = await this.readBudgets();
+    return budgets[token] ?? 0;
+  }
+
+  async recordSessionBudget(token: string, n: number): Promise<void> {
+    try {
+      const budgets = await this.readBudgets();
+      budgets[token] = (budgets[token] ?? 0) + Math.max(0, Math.floor(n));
+      await mkdir(DATA_DIR, { recursive: true });
+      await writeFile(BUDGET_PATH, JSON.stringify(budgets), 'utf-8');
+    } catch {
+      // best effort — budget writes must never break a request
     }
   }
 }
