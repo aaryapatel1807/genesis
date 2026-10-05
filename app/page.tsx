@@ -1,124 +1,155 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { ArrowRight, Compass, Network, Search, Sparkles } from 'lucide-react';
+import { AppShell } from '@/components/layout/AppShell';
 import { AmbientField } from '@/components/AmbientField';
 import { Button } from '@/components/ui/button';
 import { useMotionVariants } from '@/lib/motion';
+import { useWorldStore } from '@/stores/useWorldStore';
 
-const STEPS = [
-  { title: 'Generate', body: 'Live search builds the universe in seconds.' },
-  { title: 'Explore', body: 'Click any entity. Every claim carries evidence.' },
-  { title: 'Simulate', body: 'Pose a scenario. Watch the cascade ripple.' },
+const FEATURES = [
+  {
+    icon: Compass,
+    title: 'Autonomous Exploration',
+    body: 'AI-driven data discovery across domains.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Emergent Insights',
+    body: 'Detect novel patterns and connections.',
+  },
+  {
+    icon: Network,
+    title: 'Causal Reasoning',
+    body: 'Model cause-effect across entities.',
+  },
 ];
 
-export default function Home() {
+const EXAMPLE_QUERY = 'impact of LLMs on hiring';
+
+export default function LandingPage() {
   const router = useRouter();
   const { container, enterUp, enter } = useMotionVariants();
+  const announce = useWorldStore((s) => s.announce);
+  const [query, setQuery] = useState('');
+
+  const submit = (e: React.FormEvent): void => {
+    e.preventDefault();
+    const q = query.trim();
+    announce(q ? `Opening the knowledge universe for ${q}` : 'Opening the knowledge universe');
+    router.push(q ? `/world?q=${encodeURIComponent(q)}` : '/world');
+  };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-void text-ink">
-      {/* Living ambient network — matches the approved landing mockup */}
-      <AmbientField />
-      {/* Faint dot grid — 4% opacity, hero only (Theme.md) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle, rgba(238,242,248,0.04) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-      />
-      {/* Soft vignette */}
-      <div
-        aria-hidden="true"
-        className="vignette pointer-events-none absolute inset-0"
-      />
-
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={container}
-        className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center"
-      >
-        <motion.p
-          variants={enter}
-          className="font-mono text-[11px] uppercase tracking-[0.35em] text-muted"
-        >
-          A living world model
-        </motion.p>
-        <motion.h1
-          variants={enterUp}
-          className="mt-4 text-[44px] font-bold leading-none tracking-[-0.02em] sm:text-[56px]"
-        >
-          GENESIS
-        </motion.h1>
-        <motion.p variants={enterUp} className="mt-4 text-lg text-muted">
-          Ask anything. Watch a world emerge.
-        </motion.p>
-
-        <motion.div variants={enterUp} className="mt-10 w-full max-w-xl">
-          <label
-            htmlFor="topic"
-            className="mb-2 block text-left font-mono text-[11px] uppercase tracking-[0.2em] text-muted"
-          >
-            Topic
-          </label>
-          <input
-            id="topic"
-            type="text"
-            value="Artificial Intelligence"
-            disabled
-            aria-describedby="topic-note"
-            className="w-full rounded-xl border border-line bg-surface-2 px-5 py-4 text-center text-lg text-ink opacity-70 disabled:cursor-not-allowed"
-          />
-          <p id="topic-note" className="mt-2 text-[11px] text-muted">
-            v1: AI Ecosystem — the topic is fixed for the demo build.
-          </p>
-        </motion.div>
-
-        <motion.div variants={enterUp}>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => router.push('/world')}
-            className="mt-8"
-          >
-            Generate World
-          </Button>
-        </motion.div>
+    <AppShell chrome="landing" title="Genesis">
+      <div className="relative overflow-hidden">
+        {/* Swirling-galaxy backdrop */}
+        <AmbientField />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 45% at 50% 42%, var(--teal) 0%, transparent 60%)',
+            opacity: 0.08,
+          }}
+        />
 
         <motion.div
           variants={container}
-          className="mt-16 grid w-full gap-4 text-left sm:grid-cols-3"
+          initial="hidden"
+          animate="show"
+          className="relative mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-5xl flex-col items-center justify-center px-4 py-16 text-center sm:px-6"
         >
-          {STEPS.map((step, i) => (
-            <motion.div
-              key={step.title}
-              variants={enterUp}
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.25 }}
-              className="rounded-[14px] border border-line bg-surface/80 p-5 backdrop-blur-sm"
-            >
-              <p className="font-mono text-[11px] text-gold">
-                {String(i + 1).padStart(2, '0')}
-              </p>
-              <h2 className="mt-2 text-[15px] font-semibold">{step.title}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted">
-                {step.body}
-              </p>
-            </motion.div>
-          ))}
-        </motion.div>
+          <motion.h1
+            variants={enterUp}
+            className="text-6xl font-bold tracking-[0.18em] text-ink sm:text-7xl md:text-8xl"
+          >
+            GENESIS
+          </motion.h1>
+          <motion.p
+            variants={enterUp}
+            className="mt-5 max-w-xl text-base text-muted sm:text-lg"
+          >
+            Explore &bull; Map &bull; Reason &bull; Simulate your knowledge universe
+          </motion.p>
 
-        <motion.footer
-          variants={enter}
-          className="mt-16 pb-8 text-[11px] text-muted"
-        >
-          Built with SerpApi live search · Demo for SerpApi India Hackathon 2026
-        </motion.footer>
-      </motion.div>
-    </main>
+          {/* Glass search bar */}
+          <motion.form
+            variants={enterUp}
+            onSubmit={submit}
+            role="search"
+            aria-label="Search the universe"
+            className="mt-9 w-full max-w-xl"
+          >
+            <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface/60 px-5 py-4 shadow-[0_8px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors focus-within:border-teal/60">
+              <Search size={18} aria-hidden="true" className="shrink-0 text-muted" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search the universe…"
+                aria-label="Search the universe"
+                className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/60 focus:outline-none"
+              />
+              <button
+                type="submit"
+                aria-label="Search"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold text-void transition-transform hover:scale-105"
+              >
+                <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setQuery(EXAMPLE_QUERY)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line/70 bg-surface/40 px-3.5 py-1.5 text-xs text-muted/80 backdrop-blur-md transition-colors hover:border-gold/50 hover:text-ink"
+            >
+              Try: &lsquo;{EXAMPLE_QUERY}&rsquo;
+            </button>
+          </motion.form>
+
+          {/* Feature cards */}
+          <motion.div
+            variants={enterUp}
+            id="features"
+            className="mt-12 grid w-full max-w-3xl scroll-mt-24 grid-cols-1 gap-4 sm:grid-cols-3"
+          >
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className="rounded-2xl border border-line bg-surface/60 p-5 text-left backdrop-blur-xl"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-teal">
+                    <Icon size={19} aria-hidden="true" strokeWidth={1.8} />
+                  </span>
+                  <h2 className="mt-3.5 text-sm font-semibold text-ink">{f.title}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">{f.body}</p>
+                </div>
+              );
+            })}
+          </motion.div>
+
+          <motion.div variants={enter} className="mt-10">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => {
+                announce('Launching Genesis');
+                router.push('/world');
+              }}
+              icon={<ArrowRight size={18} aria-hidden="true" />}
+            >
+              Launch Genesis
+            </Button>
+          </motion.div>
+        </motion.div>
+      </div>
+    </AppShell>
   );
 }

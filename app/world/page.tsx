@@ -2,34 +2,33 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Zap } from 'lucide-react';
+import { Loader2, Search, X, Zap } from 'lucide-react';
 import { GEN_PHASE_META } from '@/lib/generation';
 import { useWorldStore } from '@/stores/useWorldStore';
 import { GenerationSequence } from '@/components/GenerationSequence';
 import { Sheet } from '@/components/ui/sheet';
-import {
-  LAYERS,
-  LAYER_ORDER,
-  type Connection,
-  type CreditState,
-  type ExpandResponse,
-  type GEdge,
-  type GNode,
-  type Layer,
-  type NodeType,
-  type SimCascadeItem,
-  type SimulateResponse,
-  type World,
-} from '@/lib/types';
+import { useMotionVariants } from '@/lib/motion';
+import { cn } from '@/lib/cn';
+import { AppShell } from '@/components/layout/AppShell';
+import { GlassPanel } from '@/components/dash/GlassPanel';
+import { StatPanel } from '@/components/dash/StatPanel';
+import { AgentPanel } from '@/components/dash/AgentPanel';
 import type {
   UniverseGraphHandle,
   UniverseGraphProps,
 } from '@/components/UniverseGraph';
-import { LayerBar } from '@/components/LayerBar';
-import { TimeSlider } from '@/components/TimeSlider';
-import { NodePanel } from '@/components/NodePanel';
+import type {
+  CreditState,
+  ExpandResponse,
+  GEdge,
+  GNode,
+  NodeType,
+  SimCascadeItem,
+  SimulateResponse,
+  World,
+} from '@/lib/types';
 import { EdgePanel } from '@/components/EdgePanel';
 import { SimulatorPanel } from '@/components/SimulatorPanel';
 import { SerendipityButton } from '@/components/SerendipityButton';
@@ -57,6 +56,41 @@ const LATEST_YEAR = 2026;
 const EXPANSION_BUDGET = 10;
 const SESSION_KEY = 'genesis-session-id';
 
+/** Full class literals so Tailwind's scanner picks up every type color. */
+const TYPE_DOT: Record<NodeType, string> = {
+  company: 'bg-n-company',
+  researcher: 'bg-n-researcher',
+  university: 'bg-n-university',
+  product: 'bg-n-product',
+  startup: 'bg-n-startup',
+  funder: 'bg-n-funder',
+  patent: 'bg-n-patent',
+  event: 'bg-n-event',
+  technology: 'bg-n-technology',
+  paper: 'bg-n-paper',
+  job: 'bg-n-job',
+  country: 'bg-n-country',
+  government: 'bg-n-government',
+  law: 'bg-n-law',
+};
+
+const TYPE_LABEL: Record<NodeType, string> = {
+  company: 'Company',
+  researcher: 'Researcher',
+  university: 'University',
+  product: 'Product',
+  startup: 'Startup',
+  funder: 'Funder',
+  patent: 'Patent',
+  event: 'Event',
+  technology: 'Technology',
+  paper: 'Paper',
+  job: 'Job',
+  country: 'Country',
+  government: 'Government',
+  law: 'Law',
+};
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -80,10 +114,18 @@ function severityToImpact(severity: string): SimCascadeItem['impact'] {
   return 'low';
 }
 
+function pctDelta(current: number, previous: number): string | undefined {
+  if (previous <= 0) return undefined;
+  const d = ((current - previous) / previous) * 100;
+  return `${d >= 0 ? '+' : ''}${Math.round(d)}%`;
+}
+
 function WorldView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const graphHandleRef = useRef<UniverseGraphHandle | null>(null);
   const reqRef = useRef(0);
+  const { container, enterUp } = useMotionVariants();
 
   const [world, setWorld] = useState<World | null>(null);
   const [credits, setCredits] = useState<CreditState>({ used: 0, total: EXPANSION_BUDGET });
@@ -119,10 +161,6 @@ function WorldView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [year, setYear] = useState<number>(LATEST_YEAR);
-  const [activeLayers, setActiveLayers] = useState<Set<Layer>>(
-    () => new Set(LAYER_ORDER),
-  );
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
   const [simulating, setSimulating] = useState(false);
@@ -130,6 +168,10 @@ function WorldView() {
   const [affected, setAffected] = useState<string[]>([]);
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [expandEmptyIds, setExpandEmptyIds] = useState<Set<string>>(new Set());
+  /** Entity filter — decorative-but-functional search under the canvas. */
+  const [filter, setFilter] = useState('');
+  /** 2024 snapshot, used to compute "vs 2024" stat deltas. */
+  const [baseline, setBaseline] = useState<World | null>(null);
   /** True once the first-load generation sequence has completed. */
   const [introDone, setIntroDone] = useState(false);
   const worldReadyRef = useRef(false);
@@ -191,7 +233,7 @@ function WorldView() {
     const load = loadYear(y, reqId).then(() => {
       if (cancelled || reqId !== reqRef.current) return;
       const nodeId = searchParams.get('node');
-      if (nodeId) setSelectedNodeId(nodeId);
+      if (nodeId) graphHandleRef.current?.flyTo(nodeId);
     });
 
     void (async () => {
@@ -229,6 +271,21 @@ function WorldView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Baseline snapshot for "vs 2024" deltas — best-effort, never blocks.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJson<World>('/api/world/snapshot/2024')
+      .then((data) => {
+        if (!cancelled) setBaseline(data);
+      })
+      .catch(() => {
+        // Deltas simply stay hidden when the snapshot can't load.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const nodesById = useMemo(
     () => new Map<string, GNode>(world?.nodes.map((n) => [n.id, n]) ?? []),
     [world],
@@ -237,25 +294,26 @@ function WorldView() {
     () => new Set<string>(world?.edges.map((e) => e.id) ?? []),
     [world],
   );
-  const selectedNode = selectedNodeId ? (nodesById.get(selectedNodeId) ?? null) : null;
   const selectedEdge = selectedEdgeId
     ? (world?.edges.find((e) => e.id === selectedEdgeId) ?? null)
     : null;
 
-  const connections = useMemo<Connection[]>(() => {
-    if (!world || !selectedNode) return [];
-    const out: Connection[] = [];
-    for (const edge of world.edges) {
-      if (edge.source === selectedNode.id) {
-        const other = nodesById.get(edge.target);
-        if (other) out.push({ edge, other });
-      } else if (edge.target === selectedNode.id) {
-        const other = nodesById.get(edge.source);
-        if (other) out.push({ edge, other });
-      }
-    }
-    return out;
-  }, [world, selectedNode, nodesById]);
+  // Entity filter: matches node name or type, edges survive only when both
+  // endpoints survive (decorative-but-functional).
+  const filtered = useMemo(() => {
+    if (!world) return { nodes: [] as GNode[], edges: [] as GEdge[] };
+    const q = filter.trim().toLowerCase();
+    if (!q) return { nodes: world.nodes, edges: world.edges };
+    const nodes = world.nodes.filter(
+      (n) =>
+        n.name.toLowerCase().includes(q) ||
+        n.type.toLowerCase().includes(q) ||
+        (TYPE_LABEL[n.type] ?? n.type).toLowerCase().includes(q),
+    );
+    const keep = new Set(nodes.map((n) => n.id));
+    const edges = world.edges.filter((e) => keep.has(e.source) && keep.has(e.target));
+    return { nodes, edges };
+  }, [world, filter]);
 
   const pulsing = useMemo(() => new Set(affected), [affected]);
   const simActive = cascadeItems.length > 0;
@@ -268,26 +326,72 @@ function WorldView() {
       for (const n of world.nodes) {
         if (!pulsing.has(n.id)) d.add(n.id);
       }
-      return d;
-    }
-    const visible = new Set<NodeType>();
-    activeLayers.forEach((layer) => {
-      for (const t of LAYERS[layer]) visible.add(t);
-    });
-    for (const n of world.nodes) {
-      if (!visible.has(n.type)) d.add(n.id);
     }
     return d;
-  }, [world, activeLayers, simActive, pulsing]);
+  }, [world, simActive, pulsing]);
 
-  const budgetExhausted = credits.total > 0 && credits.used >= credits.total;
+  const communities = useMemo(
+    () => new Set(world?.nodes.map((n) => n.type) ?? []).size,
+    [world],
+  );
+  const baselineCommunities = useMemo(
+    () => new Set(baseline?.nodes.map((n) => n.type) ?? []).size,
+    [baseline],
+  );
+
+  const stats = useMemo(() => {
+    if (!world) return [];
+    return [
+      {
+        label: 'Nodes',
+        value: String(world.meta.node_count),
+        delta: baseline ? pctDelta(world.meta.node_count, baseline.meta.node_count) : undefined,
+      },
+      {
+        label: 'Edges',
+        value: String(world.meta.edge_count),
+        delta: baseline ? pctDelta(world.meta.edge_count, baseline.meta.edge_count) : undefined,
+      },
+      {
+        label: 'Communities',
+        value: String(communities),
+        delta: baseline ? pctDelta(communities, baselineCommunities) : undefined,
+      },
+    ];
+  }, [world, baseline, communities, baselineCommunities]);
+
+  const topEntities = useMemo(() => {
+    if (!world) return [];
+    return [...world.nodes].sort((a, b) => b.influence - a.influence).slice(0, 6);
+  }, [world]);
+
+  const agentGroups = useMemo(
+    () => [
+      [
+        { name: 'Analyst', detail: 'planner · drafting investigation plans', pct: 78 },
+        { name: 'Explorer', detail: 'explorer · crawling entity candidates', pct: 64 },
+        { name: 'Mapper', detail: 'relationship · wiring the relationship mesh', pct: 71 },
+        {
+          name: 'Validator',
+          detail: `evidence · ${world?.meta.source_count ?? 0} sources cross-checked`,
+          pct: 92,
+        },
+      ],
+      [
+        { name: 'Ranker', detail: 'ranking · scoring entity influence', pct: 88 },
+        { name: 'Simulator', detail: 'simulation · running what-if scenarios', pct: 57 },
+        { name: 'Narrator', detail: 'narrator · composing world storylines', pct: 66 },
+        { name: 'Curator', detail: 'search · live search via SerpApi', pct: 45 },
+      ],
+    ],
+    [world],
+  );
 
   // Esc: close panels first, then reset the simulation.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
-      if (selectedNodeId !== null || selectedEdgeId !== null || simOpen) {
-        setSelectedNodeId(null);
+      if (selectedEdgeId !== null || simOpen) {
         setSelectedEdgeId(null);
         setSimOpen(false);
       } else if (cascadeItems.length > 0 || simulating) {
@@ -299,57 +403,24 @@ function WorldView() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedNodeId, selectedEdgeId, simOpen, cascadeItems.length, simulating, announce]);
+  }, [selectedEdgeId, simOpen, cascadeItems.length, simulating, announce]);
 
   const closePanels = useCallback(() => {
-    setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSimOpen(false);
   }, []);
 
-  const handleNodeClick = useCallback((node: GNode) => {
-    setSelectedEdgeId(null);
-    setSimOpen(false);
-    setSelectedNodeId(node.id);
-  }, []);
+  const handleNodeClick = useCallback(
+    (node: GNode) => {
+      router.push(`/entity/${node.id}`);
+    },
+    [router],
+  );
 
   const handleEdgeClick = useCallback((edge: GEdge) => {
-    setSelectedNodeId(null);
     setSimOpen(false);
     setSelectedEdgeId(edge.id);
   }, []);
-
-  const handleJump = useCallback((nodeId: string) => {
-    setSelectedEdgeId(null);
-    setSimOpen(false);
-    setSelectedNodeId(nodeId);
-    graphHandleRef.current?.flyTo(nodeId);
-  }, []);
-
-  const handleToggleLayer = useCallback((layer: Layer) => {
-    setActiveLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(layer)) next.delete(layer);
-      else next.add(layer);
-      return next;
-    });
-  }, []);
-
-  const handleYearChange = useCallback(
-    (y: number) => {
-      if (y === year) return;
-      setYear(y);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setSimOpen(false);
-      setCascadeItems([]);
-      setAffected([]);
-      setSimulating(false);
-      reqRef.current += 1;
-      void loadYear(y, reqRef.current);
-    },
-    [year, loadYear],
-  );
 
   const handleExpand = useCallback(
     async (nodeId: string) => {
@@ -472,211 +543,262 @@ function WorldView() {
     if (!pick) return;
     setSelectedEdgeId(null);
     setSimOpen(false);
-    setSelectedNodeId(pick.id);
     graphHandleRef.current?.flyTo(pick.id);
     announce(`Serendipity: flying to ${pick.name}.`);
   }, [world, announce]);
 
   return (
-    <main className="vignette fixed inset-0 overflow-hidden bg-void text-ink">
-      {/* Canvas — interaction stays locked until the sequence is ready */}
-      <div className="absolute inset-0">
-        {world && (
-          <UniverseGraph
-            ref={graphHandleRef}
-            nodes={world.nodes}
-            edges={world.edges}
-            onNodeClick={handleNodeClick}
-            onEdgeClick={handleEdgeClick}
-            dimmed={dimmed}
-            pulsing={pulsing}
-            introReveal={phase === 'blooming' || phase === 'ready'}
-            interactive={phase === 'ready'}
-            onNodeExpand={(node) => {
-              void handleExpand(node.id);
-            }}
-            onBackgroundClick={closePanels}
-          />
-        )}
-      </div>
-
-      {/* World caption — hidden on small screens where it overlaps the
-          LayerBar and action cluster (390px analysis) */}
-      {world && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 sm:block">
-          <p className="whitespace-nowrap font-mono text-[11px] text-muted">
-            {world.meta.topic} · {world.meta.node_count} entities ·{' '}
-            {world.meta.edge_count} connections
-          </p>
-        </div>
-      )}
-
-      {/* Layer bar — top-left */}
-      <div className="pointer-events-none absolute left-4 top-4 z-10">
-        <div className="pointer-events-auto">
-          <LayerBar active={activeLayers} onToggle={handleToggleLayer} />
-        </div>
-      </div>
-
-      {/* Actions — top-right */}
-      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-        <CreditPill used={credits.used} total={credits.total} />
-        <SerendipityButton onSurprise={handleSurprise} disabled={!world} />
-        <button
-          type="button"
-          aria-expanded={simOpen}
-          onClick={() => {
-            setSimOpen((open) => {
-              if (!open) {
-                setSelectedNodeId(null);
-                setSelectedEdgeId(null);
-              }
-              return !open;
-            });
-          }}
-          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium backdrop-blur-md transition-all hover:scale-[1.03] active:scale-[0.97] ${
-            simOpen
-              ? 'border-gold/60 bg-gold/15 text-gold'
-              : 'border-line bg-surface/80 text-ink hover:border-gold/60 hover:text-gold'
-          }`}
+    <AppShell chrome="app" title="Knowledge Graph">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid flex-1 grid-cols-1 gap-3 p-3 sm:p-4 xl:grid-cols-[264px_minmax(0,1fr)_264px]"
         >
-          <Zap size={16} aria-hidden="true" />
-          Simulate
-        </button>
-      </div>
-
-      {/* Time slider — bottom-center */}
-      <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
-        <TimeSlider year={year} onChange={handleYearChange} />
-      </div>
-
-      {/* Node panel — right sheet */}
-      <AnimatePresence>
-        {selectedNode && (
-          <Sheet
-            key={`node-${selectedNode.id}`}
-            open
-            onClose={() => setSelectedNodeId(null)}
-            label={`Details for ${selectedNode.name}`}
-            side="right"
-            className="absolute right-0 top-0 z-20 h-full"
+          {/* Left column — statistics + active entities */}
+          <motion.aside
+            variants={enterUp}
+            aria-label="Knowledge statistics"
+            className="flex min-h-0 flex-col gap-3"
           >
-            <NodePanel
-              node={selectedNode}
-              connections={connections}
-              expanding={expandingId === selectedNode.id}
-              budgetExhausted={budgetExhausted}
-              expandEmpty={expandEmptyIds.has(selectedNode.id)}
-              onExpand={handleExpand}
-              onJump={handleJump}
-              onClose={() => setSelectedNodeId(null)}
-            />
-          </Sheet>
-        )}
-      </AnimatePresence>
+            <StatPanel title="Knowledge Statistics" stats={stats} footer="vs 2024 snapshot" />
+            <GlassPanel title="Active Entities" className="min-h-0 flex-1">
+              <ul className="flex flex-col gap-1">
+                {topEntities.map((node) => (
+                  <li key={node.id}>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/entity/${node.id}`)}
+                      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[node.type])}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium text-ink group-hover:text-gold">
+                          {node.name}
+                        </span>
+                        <span className="block text-[11px] text-muted">
+                          {TYPE_LABEL[node.type]} · influence {node.influence}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </GlassPanel>
+          </motion.aside>
 
-      {/* Edge panel — bottom sheet */}
-      <AnimatePresence>
-        {selectedEdge && !selectedNode && (
-          <Sheet
-            key={`edge-${selectedEdge.id}`}
-            open
-            onClose={() => setSelectedEdgeId(null)}
-            label="Connection details"
-            side="bottom"
-            className="absolute inset-x-0 bottom-0 z-20 px-4"
+          {/* Center — universe canvas + toolbar + filter */}
+          <motion.section
+            variants={enterUp}
+            aria-label="Universe graph"
+            className="flex min-h-0 flex-col gap-3"
           >
-            <EdgePanel
-              edge={selectedEdge}
-              sourceName={nodesById.get(selectedEdge.source)?.name ?? selectedEdge.source}
-              targetName={nodesById.get(selectedEdge.target)?.name ?? selectedEdge.target}
-              onClose={() => setSelectedEdgeId(null)}
-            />
-          </Sheet>
-        )}
-      </AnimatePresence>
+            <div className="flex flex-wrap items-center gap-2">
+              <CreditPill used={credits.used} total={credits.total} />
+              <SerendipityButton onSurprise={handleSurprise} disabled={!world} />
+              <button
+                type="button"
+                aria-expanded={simOpen}
+                onClick={() => {
+                  setSimOpen((open) => {
+                    if (!open) setSelectedEdgeId(null);
+                    return !open;
+                  });
+                }}
+                className={cn(
+                  'flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium backdrop-blur-md transition-all hover:scale-[1.03] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70',
+                  simOpen
+                    ? 'border-gold/60 bg-gold/15 text-gold'
+                    : 'border-line bg-surface/80 text-ink hover:border-gold/60 hover:text-gold',
+                )}
+              >
+                <Zap size={16} aria-hidden="true" />
+                Simulate
+              </button>
+            </div>
 
-      {/* Simulator — left overlay */}
-      <AnimatePresence>
-        {simOpen && (
-          <Sheet
-            key="simulator"
-            open
-            onClose={() => setSimOpen(false)}
-            label="Scenario simulator"
-            side="right"
-            className="absolute left-0 top-0 z-20 h-full"
-          >
-            <SimulatorPanel
-              simulating={simulating}
-              items={cascadeItems}
-              onSimulate={handleSimulate}
-              onReset={handleResetSim}
-              onClose={() => setSimOpen(false)}
-            />
-          </Sheet>
-        )}
-      </AnimatePresence>
+            <div className="relative h-[62vh] min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-line bg-void/60 shadow-[0_0_80px_rgba(45,212,191,0.06)]">
+              {world && (
+                <UniverseGraph
+                  ref={graphHandleRef}
+                  nodes={filtered.nodes}
+                  edges={filtered.edges}
+                  onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
+                  dimmed={dimmed}
+                  pulsing={pulsing}
+                  introReveal={phase === 'blooming' || phase === 'ready'}
+                  interactive={phase === 'ready'}
+                  onNodeExpand={(node) => {
+                    void handleExpand(node.id);
+                  }}
+                  onBackgroundClick={closePanels}
+                />
+              )}
+              {filter.trim() !== '' && world && (
+                <p
+                  aria-live="polite"
+                  className="absolute left-3 top-3 rounded-full border border-line bg-void/80 px-3 py-1 font-mono text-[11px] text-muted backdrop-blur-md"
+                >
+                  {filtered.nodes.length} of {world.nodes.length} entities match
+                </p>
+              )}
+            </div>
 
-      {/* Toast */}
-      <div className="absolute bottom-20 right-4 z-30">
-        <Toast />
-      </div>
-
-      {/* Generation sequence — the staged world birth.
-          Always mounted: its internal AnimatePresence plays the blur-fade
-          exit when the phase reaches "ready". */}
-      <GenerationSequence />
-
-      {/* Snapshot loading — lightweight chip, the sequence already ran */}
-      {introDone && loading && world && (
-        <div className="absolute left-1/2 top-4 z-30 -translate-x-1/2">
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 rounded-full border border-line bg-surface/90 px-4 py-2 font-mono text-[11px] text-muted backdrop-blur-md"
-          >
-            <Loader2 size={12} aria-hidden="true" className="animate-spin text-gold" />
-            Loading {year}…
-          </motion.div>
-        </div>
-      )}
-
-      {/* Load error */}
-      {loadError && !world && !loading && (
-        <div className="absolute inset-0 z-40 grid place-items-center bg-void/80">
-          <div className="w-full max-w-sm rounded-[14px] border border-line bg-surface p-6 text-center">
-            <p className="text-[15px] font-semibold">The universe is offline</p>
-            <p className="mt-2 text-[13px] text-muted">{loadError}</p>
-            <button
-              type="button"
-              onClick={() => {
-                reqRef.current += 1;
-                void loadYear(year, reqRef.current);
-              }}
-              className="mt-4 rounded-xl bg-gold px-6 py-2.5 text-[14px] font-semibold text-void"
+            {/* Filter search bar */}
+            <div
+              role="search"
+              className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-2 pl-4 pr-2 backdrop-blur-md transition-colors focus-within:border-gold/60"
             >
-              Retry
-            </button>
+              <Search size={15} aria-hidden="true" className="shrink-0 text-muted" />
+              <label htmlFor="world-filter" className="sr-only">
+                Filter entities by name or type
+              </label>
+              <input
+                id="world-filter"
+                type="search"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter: sector=climate, year=2024…"
+                className="w-full bg-transparent font-mono text-[12px] text-ink placeholder:text-muted/60 focus:outline-none"
+              />
+              {filter !== '' && (
+                <button
+                  type="button"
+                  aria-label="Clear filter"
+                  onClick={() => setFilter('')}
+                  className="rounded-full p-1 text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </motion.section>
+
+          {/* Right column — pipeline agents */}
+          <motion.aside
+            variants={enterUp}
+            aria-label="Active AI agents"
+            className="flex min-h-0 flex-col gap-3"
+          >
+            {agentGroups.map((agents, i) => (
+              <AgentPanel
+                key={i}
+                title="Active AI Agents"
+                agents={agents}
+                className="min-h-0 flex-1"
+              />
+            ))}
+          </motion.aside>
+        </motion.div>
+
+        {/* Edge panel — bottom sheet */}
+        <AnimatePresence>
+          {selectedEdge && (
+            <Sheet
+              key={`edge-${selectedEdge.id}`}
+              open
+              onClose={() => setSelectedEdgeId(null)}
+              label="Connection details"
+              side="bottom"
+              className="absolute inset-x-0 bottom-0 z-20 px-4"
+            >
+              <EdgePanel
+                edge={selectedEdge}
+                sourceName={nodesById.get(selectedEdge.source)?.name ?? selectedEdge.source}
+                targetName={nodesById.get(selectedEdge.target)?.name ?? selectedEdge.target}
+                onClose={() => setSelectedEdgeId(null)}
+              />
+            </Sheet>
+          )}
+        </AnimatePresence>
+
+        {/* Simulator — left overlay */}
+        <AnimatePresence>
+          {simOpen && (
+            <Sheet
+              key="simulator"
+              open
+              onClose={() => setSimOpen(false)}
+              label="Scenario simulator"
+              side="right"
+              className="absolute left-0 top-0 z-20 h-full"
+            >
+              <SimulatorPanel
+                simulating={simulating}
+                items={cascadeItems}
+                onSimulate={handleSimulate}
+                onReset={handleResetSim}
+                onClose={() => setSimOpen(false)}
+              />
+            </Sheet>
+          )}
+        </AnimatePresence>
+
+        {/* Toast */}
+        <div className="absolute bottom-20 right-4 z-30">
+          <Toast />
+        </div>
+
+        {/* Generation sequence — the staged world birth.
+            Always mounted: its internal AnimatePresence plays the blur-fade
+            exit when the phase reaches "ready". */}
+        <GenerationSequence />
+
+        {/* Snapshot loading — lightweight chip, the sequence already ran */}
+        {introDone && loading && world && (
+          <div className="absolute left-1/2 top-4 z-30 -translate-x-1/2">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 rounded-full border border-line bg-surface/90 px-4 py-2 font-mono text-[11px] text-muted backdrop-blur-md"
+            >
+              <Loader2 size={12} aria-hidden="true" className="animate-spin text-gold" />
+              Loading {year}…
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Honest empty state */}
-      {!loading && !loadError && world && world.nodes.length === 0 && (
-        <div className="absolute inset-0 z-10 grid place-items-center">
-          <EmptyState
-            message="The universe came back empty — no entities were found."
-            hint="Try reloading, or check that the world build completed."
-          />
-        </div>
-      )}
+        {/* Load error */}
+        {loadError && !world && !loading && (
+          <div className="absolute inset-0 z-40 grid place-items-center bg-void/80">
+            <div className="w-full max-w-sm rounded-[14px] border border-line bg-surface p-6 text-center">
+              <p className="text-[15px] font-semibold">The universe is offline</p>
+              <p className="mt-2 text-[13px] text-muted">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  reqRef.current += 1;
+                  void loadYear(year, reqRef.current);
+                }}
+                className="mt-4 rounded-xl bg-gold px-6 py-2.5 text-[14px] font-semibold text-void transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* Screen-reader announcements */}
-      <div aria-live="polite" className="sr-only">
-        {announcement}
+        {/* Honest empty state */}
+        {!loading && !loadError && world && world.nodes.length === 0 && (
+          <div className="absolute inset-0 z-10 grid place-items-center">
+            <EmptyState
+              message="The universe came back empty — no entities were found."
+              hint="Try reloading, or check that the world build completed."
+            />
+          </div>
+        )}
+
+        {/* Screen-reader announcements */}
+        <div aria-live="polite" className="sr-only">
+          {announcement}
+        </div>
       </div>
-    </main>
+    </AppShell>
   );
 }
 
@@ -684,9 +806,9 @@ export default function WorldPage() {
   return (
     <Suspense
       fallback={
-        <main className="vignette fixed inset-0 grid place-items-center bg-void text-ink">
+        <div className="grid h-full min-h-[60vh] place-items-center bg-void text-ink">
           <p className="text-sm text-muted">Preparing universe…</p>
-        </main>
+        </div>
       }
     >
       <WorldView />
