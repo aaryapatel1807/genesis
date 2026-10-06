@@ -10,6 +10,11 @@ export interface World { meta: WorldMeta; nodes: GNode[]; edges: GEdge[]; }
 
 // --- Derived mappings -------------------------------------------------------
 
+/**
+ * Legacy dark-palette node colors (mirrors the --n-* :root vars).
+ * @deprecated Use the live `var(--n-<type>)` CSS var reference instead —
+ * it resolves to the current theme's value automatically.
+ */
 export const NODE_COLORS: Record<NodeType, string> = {
   company: '#2dd4bf',
   researcher: '#a78bfa',

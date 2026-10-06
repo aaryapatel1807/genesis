@@ -199,7 +199,7 @@ export function AgentChecklist({
             animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: reduced ? 0.2 : 0.5 }}
             className="flex items-center gap-2 text-sm font-semibold text-gold"
-            style={{ textShadow: '0 0 18px rgba(245,185,66,0.45)' }}
+            style={{ textShadow: '0 0 18px color-mix(in srgb, var(--gold) 45%, transparent)' }}
           >
             <StepDot state="done" reduced={reduced} />
             World Ready

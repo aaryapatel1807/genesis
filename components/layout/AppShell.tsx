@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { useWorldStore } from '@/stores/useWorldStore';
 import { GENESIS_EASE } from '@/lib/motion';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import worldData from '@/data/world.json';
 
 export type AppChrome = 'landing' | 'app';
@@ -366,6 +367,7 @@ function SiteHeader({ variant }: { variant: AppChrome }) {
         {variant === 'app' ? (
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <GenerateWorldButton />
+            <ThemeToggle />
             <NotificationBell />
             <AiStatusPill />
             <UserAvatar />
@@ -417,6 +419,7 @@ function HeaderAuthActions() {
   return (
     <>
       <div className="flex shrink-0 items-center gap-2">
+        <ThemeToggle />
         <Button
           variant="secondary"
           size="sm"
@@ -508,7 +511,7 @@ function NavLinkItem({
         'flex items-center justify-center rounded-xl transition-colors',
         sizeClass,
         active
-          ? 'bg-teal/10 text-teal shadow-[0_0_18px_rgba(46,230,197,0.28)]'
+          ? 'bg-teal/10 text-teal shadow-[0_0_18px_color-mix(in_srgb,var(--teal)_28%,transparent)]'
           : 'text-muted hover:bg-teal/10 hover:text-teal',
       )}
     >

@@ -593,7 +593,7 @@ export default function SimulatePage(): React.JSX.Element {
                       'group flex flex-col gap-2 rounded-2xl border p-4 text-left transition-all duration-200',
                       'disabled:cursor-not-allowed disabled:opacity-50',
                       active
-                        ? 'border-gold/70 bg-gold/10 shadow-[0_0_24px_rgba(245,185,66,0.15)]'
+                        ? 'border-gold/70 bg-gold/10 shadow-[0_0_24px_color-mix(in_srgb,var(--gold)_15%,transparent)]'
                         : 'border-line bg-white/[0.02] hover:border-gold/50 hover:bg-gold/[0.06]',
                     )}
                   >

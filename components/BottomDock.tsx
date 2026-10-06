@@ -606,7 +606,7 @@ export function BottomDock({ world }: { world: World }) {
                 height: 44,
                 borderRadius: '50%',
                 border: '1px solid transparent',
-                background: isActive ? 'rgba(46, 230, 197, 0.12)' : 'transparent',
+                background: isActive ? 'color-mix(in srgb, var(--teal) 12%, transparent)' : 'transparent',
                 borderColor: isActive ? 'var(--teal)' : 'transparent',
                 color: isActive ? 'var(--teal)' : 'var(--mut)',
                 cursor: 'pointer',

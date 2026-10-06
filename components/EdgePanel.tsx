@@ -11,9 +11,11 @@ interface EdgePanelProps {
 }
 
 const STRENGTH_STYLE: Record<Strength, { dot: string; label: string }> = {
-  strong: { dot: '#4ade80', label: 'Strong' },
-  medium: { dot: '#f5b942', label: 'Medium' },
-  weak: { dot: '#ef4444', label: 'Weak' },
+  // Live CSS var references so the dots follow the theme (--n-*, --gold,
+  // --red all carry per-theme values in globals.css).
+  strong: { dot: 'var(--n-startup)', label: 'Strong' },
+  medium: { dot: 'var(--gold)', label: 'Medium' },
+  weak: { dot: 'var(--red)', label: 'Weak' },
 };
 
 export function EdgePanel({ edge, sourceName, targetName, onClose }: EdgePanelProps) {

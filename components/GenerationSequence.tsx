@@ -110,7 +110,7 @@ export function GenerationSequence() {
             {/* Thin gold progress hairline */}
             <div className="mt-8 h-px w-full overflow-hidden rounded-full bg-line">
               <motion.div
-                className="h-full bg-gold shadow-[0_0_12px_rgba(245,185,66,0.8)]"
+                className="h-full bg-gold shadow-[0_0_12px_color-mix(in_srgb,var(--gold)_80%,transparent)]"
                 initial={{ width: '4%' }}
                 animate={{ width: `${Math.min(96, 8 + (idx / GEN_BEATS.length) * 88)}%` }}
                 transition={{ duration: DURATION.slow, ease: GENESIS_EASE }}

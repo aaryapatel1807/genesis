@@ -16,9 +16,12 @@ import ForceGraph2D, {
 } from 'react-force-graph-2d';
 import {
   CATEGORIES,
+  CATEGORY_COLORS_LIGHT,
+  categoryColor,
   categoryOf,
   type Category,
 } from '@/lib/category';
+import { getTheme, type Theme } from '@/lib/theme';
 import {
   type GEdge,
   type GNode,
@@ -77,31 +80,68 @@ function shapeOf(type: NodeType): Shape {
   return 'circle';
 }
 
-const EDGE_TOKEN: Record<Strength, { token: string; fallback: string; alpha: number; width: number }> = {
-  strong: { token: '--n-startup', fallback: '#4ade80', alpha: 0.6, width: 2.5 },
-  medium: { token: '--gold', fallback: '#f5b942', alpha: 0.5, width: 1.75 },
-  weak: { token: '--red', fallback: '#ef4444', alpha: 0.35, width: 1 },
+const EDGE_TOKEN: Record<Strength, { token: string; fallback: string; lightFallback: string; alpha: number; width: number }> = {
+  strong: { token: '--n-startup', fallback: '#4ade80', lightFallback: CATEGORY_COLORS_LIGHT.research!, alpha: 0.6, width: 2.5 },
+  medium: { token: '--gold', fallback: '#f5b942', lightFallback: CATEGORY_COLORS_LIGHT.funding!, alpha: 0.5, width: 1.75 },
+  weak: { token: '--red', fallback: '#ef4444', lightFallback: CATEGORY_COLORS_LIGHT.news!, alpha: 0.35, width: 1 },
 };
 
 const edgeColorCache = new Map<string, string>();
 const categoryColorCache = new Map<string, string>();
+const tokenValueCache = new Map<string, string>();
+
+/** Live theme, read at paint time from the <html> data-theme attribute. */
+function currentTheme(): Theme {
+  return getTheme();
+}
+
+/**
+ * Glow scale per theme: full neon in dark, soft/subtle in light.
+ * Applied to every canvas shadowBlur so glow never burns on light bg.
+ */
+function glowScale(theme: Theme): number {
+  return theme === 'light' ? 0.35 : 1;
+}
+
+/**
+ * Resolve a design token to its live CSS value, cached per theme so the
+ * canvas picks up the theme switch without a reload. SSR-safe fallback.
+ */
+function tokenValue(token: string, fallback: string): string {
+  const theme = currentTheme();
+  const key = `${theme}:${token}`;
+  let value = tokenValueCache.get(key);
+  if (!value) {
+    value = fallback;
+    if (typeof document !== 'undefined') {
+      const v = getComputedStyle(document.documentElement)
+        .getPropertyValue(token)
+        .trim();
+      if (v) value = v;
+    }
+    tokenValueCache.set(key, value);
+  }
+  return value;
+}
 
 /**
  * Category paint colors resolve from the --cat-* design tokens
  * (globals.css) so the canvas never carries hardcoded hex — one cache per
- * category, SSR-safe fallback to the lib/category.ts hex.
+ * category per theme, SSR-safe fallback to the lib/category.ts palette.
  */
 function categoryPaintColor(cat: Category): string {
-  let color = categoryColorCache.get(cat.id);
+  const theme = currentTheme();
+  const key = `${theme}:${cat.id}`;
+  let color = categoryColorCache.get(key);
   if (!color) {
-    color = cat.color;
+    color = categoryColor(cat.id, theme);
     if (typeof document !== 'undefined') {
       const v = getComputedStyle(document.documentElement)
         .getPropertyValue(`--cat-${cat.id}`)
         .trim();
       if (v) color = v;
     }
-    categoryColorCache.set(cat.id, color);
+    categoryColorCache.set(key, color);
   }
   return color;
 }
@@ -116,22 +156,31 @@ function activeCategorySet(
 
 /**
  * Edge colors resolve from the design tokens (globals.css) so the canvas
- * never carries hardcoded hex — one cache per token, SSR-safe fallback.
+ * never carries hardcoded hex — one cache per token per theme, SSR-safe
+ * fallback from the theme palette. In light mode strokes also paint
+ * slightly thicker and more opaque so they stay readable on #f3f5ff.
  */
 function edgeStyle(strength: Strength): { color: string; alpha: number; width: number } {
-  const spec = EDGE_TOKEN[strength] ?? EDGE_TOKEN.medium;
-  let color = edgeColorCache.get(spec.token);
+  const theme = currentTheme();
+  const spec = EDGE_TOKEN[strength] ?? EDGE_TOKEN.medium!;
+  const key = `${theme}:${spec.token}`;
+  let color = edgeColorCache.get(key);
   if (!color) {
-    color = spec.fallback;
+    color = theme === 'light' ? spec.lightFallback : spec.fallback;
     if (typeof document !== 'undefined') {
       const v = getComputedStyle(document.documentElement)
         .getPropertyValue(spec.token)
         .trim();
       if (v) color = v;
     }
-    edgeColorCache.set(spec.token, color);
+    edgeColorCache.set(key, color);
   }
-  return { color, alpha: spec.alpha, width: spec.width };
+  const lightBoost = theme === 'light';
+  return {
+    color,
+    alpha: lightBoost ? Math.min(1, spec.alpha * 1.3) : spec.alpha,
+    width: lightBoost ? spec.width * 1.25 : spec.width,
+  };
 }
 
 interface PaintNode extends ForceGraphNode {
@@ -265,6 +314,19 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const ro = new ResizeObserver(update);
       ro.observe(el);
       return () => ro.disconnect();
+    }, []);
+
+    // Theme changes re-resolve every cached token (caches are keyed per
+    // theme) and force a full repaint so the canvas follows the toggle.
+    useEffect(() => {
+      const obs = new MutationObserver(() => {
+        graphRef.current?.refresh();
+      });
+      obs.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+      return () => obs.disconnect();
     }, []);
 
     const edgesRef = useRef(edges);
@@ -488,10 +550,13 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         (0.55 + 0.45 * focus) *
         (isHot ? 1.15 : 1);
 
+      const theme = currentTheme();
+      const glow = glowScale(theme);
+
       ctx.save();
       ctx.globalAlpha = isDimmed ? 0.15 : (0.15 + 0.85 * focus) * progress;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 18 * focus;
+      ctx.shadowBlur = 18 * focus * glow;
       ctx.fillStyle = color;
       drawShape(ctx, n.x, n.y, Math.max(r, 0.5), shapeOf(n.type));
       ctx.fill();
@@ -505,7 +570,7 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.6 / globalScale;
         ctx.shadowColor = color;
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 20 * glow;
         ctx.beginPath();
         ctx.arc(n.x, n.y, r + 4, 0, Math.PI * 2);
         ctx.stroke();
@@ -514,21 +579,23 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
 
       // Simulation pulse: oscillating gold ring (static ring if reduced motion)
       if (isPulsing && !isDimmed) {
+        const pulseGold = tokenValue('--gold', '#f5b942');
         const phase = reduced ? 1 : Math.sin(now / 300);
         const ringR = r + 5 + (reduced ? 0 : 2 * phase);
         ctx.save();
         ctx.globalAlpha = reduced ? 0.9 : 0.5 + 0.4 * phase;
-        ctx.strokeStyle = '#f5b942';
+        ctx.strokeStyle = pulseGold;
         ctx.lineWidth = 2 / globalScale;
-        ctx.shadowColor = '#f5b942';
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = pulseGold;
+        ctx.shadowBlur = 12 * glow;
         ctx.beginPath();
         ctx.arc(n.x, n.y, ringR, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
 
-      // Labels: JetBrains Mono with dark halo, on hover/keyboard focus or zoom
+      // Labels: JetBrains Mono with a halo of the background color so they
+      // read on both themes; fill uses --ink (cream on dark, dark on light).
       if ((isHot || globalScale > 1.6) && progress > 0.8 && !isDimmed) {
         const fontSize = 12 / globalScale;
         ctx.font = `500 ${fontSize}px "JetBrains Mono", monospace`;
@@ -538,9 +605,9 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         ctx.save();
         ctx.globalAlpha = 1;
         ctx.lineWidth = 3 / globalScale;
-        ctx.strokeStyle = 'rgba(5,7,12,0.9)';
+        ctx.strokeStyle = tokenValue('--bg', 'rgba(5,7,12,0.9)');
         ctx.strokeText(n.name, n.x, ly);
-        ctx.fillStyle = '#eef2f8';
+        ctx.fillStyle = tokenValue('--ink', '#eef2f8');
         ctx.fillText(n.name, n.x, ly);
         ctx.restore();
       }
@@ -583,7 +650,7 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       ctx.strokeStyle = style.color;
       ctx.lineWidth = style.width / globalScale;
       ctx.shadowColor = style.color;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 10 * glowScale(currentTheme());
       if (e.strength === 'weak') ctx.setLineDash([4 / globalScale, 3 / globalScale]);
       ctx.beginPath();
       ctx.moveTo(sObj.x, sObj.y ?? 0);

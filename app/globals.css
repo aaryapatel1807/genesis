@@ -462,3 +462,174 @@ textarea:focus { border-color: rgba(46, 230, 197, 0.5); }
 @media (prefers-reduced-motion: reduce) {
   .galaxy i, .orb { animation: none !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Light theme — scoped to <html data-theme="light">. Token values      */
+/* adopted from the approved light reference UI kit. The :root block    */
+/* above is the dark theme (product default). No hardcoded hex outside  */
+/* these two token blocks.                                              */
+/* ------------------------------------------------------------------ */
+:root[data-theme='light'] {
+  --bg: #f3f5ff;
+  --void: #f3f5ff;
+  --surface: #ffffff;
+  --surface-2: #eef1fb;
+  --ink: #17203a;
+  --cream: #17203a;
+  --muted: #55627f;
+  --mut: #55627f;
+  --line: rgba(70, 80, 150, 0.16);
+  --gold: #5b5bf0;
+  --amber: #d97706;
+  --gold-hi: #8b7bff;
+  --gold-lo: #4f46e5;
+  --gold-ink: #ffffff;
+  --teal: #0d9488;
+  --red: #e11d48;
+  --r: 20px;
+
+  /* v2 semantic categories — light-adapted, single palette mirror. */
+  --cat-companies: #2563eb;
+  --cat-research: #16a34a;
+  --cat-people: #7c3aed;
+  --cat-products: #d97706;
+  --cat-funding: #b45309;
+  --cat-news: #e11d48;
+  --cat-government: #0284c7;
+  --cat-other: #475569;
+
+  --n-company: #0d9488;
+  --n-researcher: #7c3aed;
+  --n-university: #2563eb;
+  --n-product: #d97706;
+  --n-startup: #16a34a;
+  --n-funder: #db2777;
+  --n-patent: #64748b;
+  --n-event: #e11d48;
+  --n-technology: #0891b2;
+  --n-paper: #4f46e5;
+  --n-job: #ea580c;
+  --n-country: #475569;
+  --n-government: #78716c;
+  --n-law: #a21caf;
+}
+
+:root[data-theme='light'] body {
+  background:
+    radial-gradient(700px 520px at 85% -5%, rgba(126, 232, 214, 0.55), transparent),
+    radial-gradient(640px 520px at 5% 10%, rgba(185, 168, 255, 0.55), transparent),
+    radial-gradient(700px 560px at 95% 95%, rgba(255, 194, 220, 0.5), transparent),
+    radial-gradient(640px 480px at 0 100%, rgba(255, 224, 163, 0.55), transparent),
+    var(--bg);
+}
+
+/* Cinematic observatory vignette — light version */
+:root[data-theme='light'] .vignette {
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+/* Scrollbars */
+:root[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(70, 80, 150, 0.35);
+}
+
+/* Range slider — light track, thumb border follows the light void */
+:root[data-theme='light'] input[type='range'] {
+  background: rgba(70, 80, 150, 0.16);
+}
+:root[data-theme='light'] input[type='range']::-webkit-slider-thumb,
+:root[data-theme='light'] input[type='range']::-moz-range-thumb {
+  border: 2px solid var(--void);
+}
+
+/* Frosted glass panel — white frosted */
+:root[data-theme='light'] .glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.38));
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 10px 36px rgba(79, 70, 229, 0.14);
+}
+
+/* Gold CTA — shadows shift from gold to indigo in light */
+:root[data-theme='light'] .gold {
+  box-shadow: 0 8px 26px rgba(91, 91, 240, 0.4);
+}
+:root[data-theme='light'] .gold:hover {
+  box-shadow: 0 10px 34px rgba(91, 91, 240, 0.55);
+}
+
+/* Ghost pill — white glass */
+:root[data-theme='light'] .ghost {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+:root[data-theme='light'] .ghost:hover {
+  border-color: rgba(13, 148, 136, 0.55);
+}
+:root[data-theme='light'] .ghost.on {
+  background: rgba(13, 148, 136, 0.1);
+}
+
+/* Tag chip — keeps the light line token */
+:root[data-theme='light'] .tag {
+  border: 1px solid var(--line);
+}
+
+/* Progress bars — light track */
+:root[data-theme='light'] .bar {
+  background: rgba(70, 80, 150, 0.14);
+}
+
+/* Reasoning log — readable deep teal-ink on light */
+:root[data-theme='light'] .log {
+  color: #0f5b54;
+}
+
+/* Galaxy rings — teal / indigo / pink, white+indigo core glow */
+:root[data-theme='light'] .galaxy i {
+  border-color: rgba(13, 148, 136, 0.22);
+}
+:root[data-theme='light'] .galaxy i:nth-child(2) {
+  border-color: rgba(91, 91, 240, 0.2);
+}
+:root[data-theme='light'] .galaxy i:nth-child(3) {
+  border-color: rgba(219, 39, 119, 0.14);
+}
+:root[data-theme='light'] .galaxy::before {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(139, 123, 255, 0.25) 45%, transparent 70%);
+}
+
+/* Pulsing orb — white/mint/blue sphere with blue glows */
+:root[data-theme='light'] .orb {
+  background: radial-gradient(circle at 35% 30%, #ffffff, #7ee8d6 35%, #5b8cff 80%);
+  box-shadow: 0 0 80px 20px rgba(91, 140, 255, 0.28), 0 0 200px 60px rgba(126, 232, 214, 0.2);
+}
+@keyframes pulse-light {
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 110px 30px rgba(91, 140, 255, 0.38), 0 0 240px 80px rgba(126, 232, 214, 0.25);
+  }
+}
+:root[data-theme='light'] .orb {
+  animation-name: pulse-light;
+}
+
+/* Search pills — white glass */
+:root[data-theme='light'] .search {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Prompt textarea — light frosted */
+:root[data-theme='light'] textarea {
+  background: rgba(255, 255, 255, 0.7);
+}
+:root[data-theme='light'] textarea:focus {
+  border-color: rgba(13, 148, 136, 0.5);
+}
+
+/* Focus ring stays visible: --gold is indigo (#5b5bf0) in light, no override needed. */
+:root[data-theme='light'] :focus-visible {
+  outline-color: var(--gold);
+}

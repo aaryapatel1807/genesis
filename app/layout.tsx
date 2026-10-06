@@ -25,9 +25,20 @@ export const metadata: Metadata = {
     description:
       'A living knowledge universe of the AI ecosystem. Every connection backed by evidence.',
   },
-  themeColor: '#04080a',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f3f5ff' },
+    { media: '(prefers-color-scheme: dark)', color: '#04080a' },
+  ],
   robots: { index: true, follow: true },
 };
+
+/**
+ * No-flash theme script — the FIRST child of <html>. Runs before paint and
+ * before React hydration: reads the stored theme, falls back to the OS
+ * preference, and stamps `data-theme` on <html> so the correct CSS custom
+ * properties win from the first frame. Keep tiny and dependency-free.
+ */
+const NO_FLASH_THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('genesis-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 
 export default function RootLayout({
   children,
@@ -35,7 +46,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <script
+        dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }}
+      />
       <body
         className={`${sans.variable} ${jetbrainsMono.variable} bg-void text-ink font-sans antialiased`}
       >

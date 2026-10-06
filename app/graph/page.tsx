@@ -379,7 +379,7 @@ export default function GraphHubPage() {
               </div>
             </div>
 
-            <div className="relative h-[62vh] min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-line bg-void/60 shadow-[0_0_80px_rgba(245,185,66,0.07)]">
+            <div className="relative h-[62vh] min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-line bg-void/60 shadow-[0_0_80px_color-mix(in_srgb,var(--gold)_7%,transparent)]">
               {world && hub && (
                 <HubRing
                   hub={hub}

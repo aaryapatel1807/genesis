@@ -18,7 +18,7 @@ type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
-    'bg-[linear-gradient(180deg,var(--gold-hi),var(--gold-lo))] text-[var(--gold-ink)] shadow-[0_0_40px_rgba(245,185,74,0.35)] hover:shadow-[0_0_52px_rgba(245,185,74,0.5)]',
+    'bg-[linear-gradient(180deg,var(--gold-hi),var(--gold-lo))] text-[var(--gold-ink)] shadow-[0_0_40px_color-mix(in_srgb,var(--gold)_35%,transparent)] hover:shadow-[0_0_52px_color-mix(in_srgb,var(--gold)_50%,transparent)]',
   secondary:
     'border border-line bg-white/5 text-ink backdrop-blur-md hover:border-teal/50 hover:text-teal',
   ghost: 'text-muted hover:bg-teal/10 hover:text-teal',

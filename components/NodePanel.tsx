@@ -2,13 +2,18 @@
 
 import { useMemo } from 'react';
 import { ExternalLink, Plus, X } from 'lucide-react';
-import {
-  NODE_COLORS,
-  type Connection,
-  type GNode,
-} from '@/lib/types';
+import type { Connection, GNode, NodeType } from '@/lib/types';
 import { RealityMeter } from './RealityMeter';
 import { Button } from './ui/button';
+
+/**
+ * Per-type color as a live CSS var reference (--n-* in globals.css), so the
+ * dots adapt to the theme automatically. Every NodeType has a --n-* token
+ * (tailwind config maps bg-n-* to the same vars).
+ */
+function nodeColorVar(type: NodeType): string {
+  return `var(--n-${type})`;
+}
 
 interface NodePanelProps {
   node: GNode;
@@ -31,7 +36,7 @@ export function NodePanel({
   onJump,
   onClose,
 }: NodePanelProps) {
-  const color = NODE_COLORS[node.type] ?? '#e8edf4';
+  const color = nodeColorVar(node.type);
 
   // Source links gathered honestly from the connected edges' evidence.
   const sources = useMemo(() => {
@@ -121,7 +126,7 @@ export function NodePanel({
                     aria-hidden="true"
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{
-                      background: NODE_COLORS[other.type] ?? '#e8edf4',
+                      background: nodeColorVar(other.type),
                     }}
                   />
                 </button>

@@ -52,7 +52,7 @@ export function TimeSlider({ year, onChange }: TimeSliderProps) {
                       ? { duration: 0.01 }
                       : { duration: DURATION.base, ease: GENESIS_EASE }
                   }
-                  className="absolute inset-0 rounded-full bg-gold shadow-[0_0_12px_rgba(245,185,66,0.45)]"
+                  className="absolute inset-0 rounded-full bg-gold shadow-[0_0_12px_color-mix(in_srgb,var(--gold)_45%,transparent)]"
                 />
               )}
               <span className="relative z-10 font-semibold">{stop.year}</span>

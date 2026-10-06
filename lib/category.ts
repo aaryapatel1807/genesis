@@ -9,6 +9,8 @@
  * truth for logic).
  */
 
+import type { Theme } from './theme';
+
 export interface Category {
   /** Stable id — also the suffix of the matching --cat-* CSS var. */
   id: string;
@@ -26,6 +28,40 @@ export const CATEGORIES: Category[] = [
   { id: 'government', label: 'Government', color: '#7cc7ff' },
   { id: 'other', label: 'Other', color: '#e9f2f3' },
 ];
+
+/**
+ * The dark palette as a plain map (matches the CATEGORIES hexes above and
+ * the :root --cat-* vars in globals.css).
+ */
+export const CATEGORY_COLORS_DARK: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.id, c.color]),
+) as Record<string, string>;
+
+/**
+ * Light-theme palette for the 8 categories: same hues, darkened for
+ * contrast on --bg #f3f5ff. Mirrors the [data-theme='light'] --cat-* vars in
+ * app/globals.css — keep the two in sync.
+ */
+export const CATEGORY_COLORS_LIGHT: Record<string, string> = {
+  companies: '#2563eb',
+  research: '#16a34a',
+  people: '#7c3aed',
+  products: '#d97706',
+  funding: '#b45309',
+  news: '#e11d48',
+  government: '#0284c7',
+  other: '#475569',
+};
+
+/**
+ * Theme-aware category color. The live CSS value always comes from the
+ * --cat-* vars (globals.css) when available — this map is the sanctioned
+ * SSR/paint fallback per theme, and the single palette both themes read.
+ */
+export function categoryColor(id: string, theme: Theme): string {
+  if (theme === 'light') return CATEGORY_COLORS_LIGHT[id] ?? CATEGORY_COLORS_LIGHT.other!;
+  return CATEGORY_COLORS_DARK[id] ?? CATEGORY_COLORS_DARK.other!;
+}
 
 /**
  * Mapping table: the 14 real entity types in data/world.json.
