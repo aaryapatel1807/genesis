@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatPanel } from '@/components/dash/StatPanel';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/EmptyState';
+import { AgentChecklist } from '@/components/AgentChecklist';
 import { cn } from '@/lib/cn';
 import { useMotionVariants } from '@/lib/motion';
 import { useWorldStore } from '@/stores/useWorldStore';
@@ -82,6 +83,19 @@ const STATUS_COPY: Record<StepState, { label: string; className: string }> = {
   active: { label: 'In progress', className: 'text-gold' },
   pending: { label: 'Pending', className: 'text-muted/70' },
   error: { label: 'Failed', className: 'text-red' },
+};
+
+/**
+ * Maps the real expansion pipeline step to the AgentChecklist beat it most
+ * closely corresponds to. The checklist's finale ("World Ready") is driven
+ * by the page phase becoming 'done'.
+ */
+const PIPELINE_TO_AGENT: Record<string, string> = {
+  prompt: 'planner',
+  extract: 'explorer',
+  relations: 'relationship',
+  simulate: 'simulation',
+  validate: 'simulation',
 };
 
 function dotClass(state: StepState): string {
@@ -228,6 +242,17 @@ export default function GeneratorPage() {
   const etaSeconds = Math.max(0, TYPICAL_SECONDS - elapsedMs / 1000);
   const doneCount = steps.filter((s) => s === 'done').length;
   const progressPct = Math.round((doneCount / PIPELINE.length) * 100);
+  const isGenerating = phase === 'generating';
+
+  // Wire the real pipeline phase into the AgentChecklist: the currently
+  // active pipeline step maps to its agent beat; 'done' lands the finale.
+  const activeStepIdx = steps.findIndex((s) => s === 'active' || s === 'error');
+  const agentPhase =
+    phase === 'done'
+      ? 'ready'
+      : phase === 'generating' && activeStepIdx >= 0
+        ? (PIPELINE_TO_AGENT[PIPELINE[activeStepIdx].id] ?? 'planner')
+        : 'planner';
 
   return (
     <AppShell chrome="app" title="World Generator">
@@ -259,7 +284,7 @@ export default function GeneratorPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={6}
-                disabled={phase === 'generating'}
+                disabled={isGenerating}
                 className="disabled:opacity-60"
               />
               <Button
@@ -325,17 +350,50 @@ export default function GeneratorPage() {
                     ) : null}
                   </div>
                 ) : phase === 'generating' ? (
-                  <p className="flex items-center gap-2 text-sm text-muted">
-                    <span aria-hidden="true" className="dot now" />
-                    {anchorName
-                      ? `Expanding from ${anchorName}…`
-                      : 'Finding the best anchor node…'}
-                  </p>
+                  <div className="space-y-4" aria-busy="true">
+                    <p className="flex items-center gap-2 text-sm text-muted">
+                      <span aria-hidden="true" className="dot now" />
+                      {anchorName
+                        ? `Expanding from ${anchorName}…`
+                        : 'Finding the best anchor node…'}
+                    </p>
+                    <AgentChecklist phase={agentPhase} />
+                  </div>
                 ) : (
                   <EmptyState
-                    message="No world generated yet."
-                    hint="Describe a domain above and press Generate World — the pipeline will expand the live universe from your prompt."
-                  />
+                    message="What world would you like to explore?"
+                    hint="Describe any domain in plain language — the pipeline extracts entities, maps their relationships and grounds every claim in evidence."
+                  >
+                    <form
+                      role="search"
+                      className="search w-full"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void generate();
+                      }}
+                    >
+                      <Search size={15} aria-hidden="true" className="shrink-0" />
+                      <label htmlFor="generator-quick" className="sr-only">
+                        Domain to explore
+                      </label>
+                      <input
+                        id="generator-quick"
+                        type="search"
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="e.g. quantum computing supply chains…"
+                        disabled={isGenerating}
+                      />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isGenerating || prompt.trim().length === 0}
+                      >
+                        Explore
+                      </Button>
+                    </form>
+                  </EmptyState>
                 )}
               </div>
             </div>

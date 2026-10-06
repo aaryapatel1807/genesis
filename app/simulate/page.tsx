@@ -1,17 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
+  Brain,
+  Cpu,
   FlaskConical,
+  Merge,
   Play,
   RotateCcw,
+  Scale,
   TriangleAlert,
+  Unlock,
+  type LucideIcon,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/EmptyState';
+import { AgentChecklist } from '@/components/AgentChecklist';
 import { useMotionVariants } from '@/lib/motion';
 import { cn } from '@/lib/cn';
 import type {
@@ -42,6 +49,67 @@ const DEFAULT_SLIDERS: SliderState = {
 };
 
 const fmtDelta = (v: number): string => `${v > 0 ? '+' : ''}${v}%`;
+
+/* Preset scenarios -------------------------------------------------------- */
+
+interface Preset {
+  id: string;
+  question: string;
+  blurb: string;
+  icon: LucideIcon;
+  scenario: string;
+  sliders: SliderState;
+}
+
+const PRESETS: Preset[] = [
+  {
+    id: 'nvidia',
+    question: 'What if NVIDIA disappeared?',
+    blurb: 'GPU supply vanishes overnight — compute becomes the bottleneck.',
+    icon: Cpu,
+    scenario:
+      'What if NVIDIA disappeared overnight — every NVIDIA GPU in the world stops working and no new accelerators ship?',
+    sliders: { aiInvestment: -50, regulation: 0, talent: 0, compute: 100 },
+  },
+  {
+    id: 'openai-opensource',
+    question: 'What if OpenAI went open source?',
+    blurb: 'Frontier weights go public — the moat evaporates.',
+    icon: Unlock,
+    scenario:
+      'What if OpenAI open-sourced all of its frontier models, weights and training recipes, free for anyone to use?',
+    sliders: { aiInvestment: 50, regulation: -25, talent: 25, compute: -25 },
+  },
+  {
+    id: 'google-anthropic',
+    question: 'What if Google acquired Anthropic?',
+    blurb: 'Two labs become one — regulators and rivals react.',
+    icon: Merge,
+    scenario:
+      'What if Google acquired Anthropic outright, folding Claude and its team into Google DeepMind?',
+    sliders: { aiInvestment: 25, regulation: 75, talent: 0, compute: 0 },
+  },
+  {
+    id: 'regulation',
+    question: 'What if AI regulation doubled?',
+    blurb: 'Compliance burden 2x — who survives the paperwork?',
+    icon: Scale,
+    scenario:
+      'What if AI regulation doubled globally — licensing for training runs, mandatory audits, strict liability?',
+    sliders: { aiInvestment: -25, regulation: 100, talent: 0, compute: 25 },
+  },
+  {
+    id: 'agi',
+    question: 'What if AGI arrived in 2027?',
+    blurb: 'The timeline collapses — everything reprices at once.',
+    icon: Brain,
+    scenario:
+      'What if AGI arrived in 2027 — a generally capable system, cheaper than human labor, deployed at scale?',
+    sliders: { aiInvestment: 100, regulation: 75, talent: 50, compute: 50 },
+  },
+];
+
+const CHECKLIST_ORDER = ['planner', 'explorer', 'evidence', 'relationship', 'simulation'];
 
 /* Simulated outcome graph — ring around an "Outcome" hub ------------------ */
 
@@ -300,13 +368,24 @@ function Meter({ label, value, pct, colorVar }: MeterProps): React.JSX.Element {
 
 export default function SimulatePage(): React.JSX.Element {
   const router = useRouter();
-  const { container, enterUp, enter } = useMotionVariants();
+  const { container, enterUp, enter, reduced } = useMotionVariants();
 
   const [world, setWorld] = useState<World | null>(null);
   const [sliders, setSliders] = useState<SliderState>(DEFAULT_SLIDERS);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checklistPhase, setChecklistPhase] = useState<string>('planner');
   const [error, setError] = useState<string | null>(null);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const t of pending) window.clearTimeout(t);
+      pending.length = 0;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -321,35 +400,85 @@ export default function SimulatePage(): React.JSX.Element {
     };
   }, []);
 
-  const run = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const scenario =
-        `What-if vs baseline: AI investment ${fmtDelta(sliders.aiInvestment)}, ` +
-        `regulation pressure ${fmtDelta(sliders.regulation)}, ` +
-        `talent supply ${fmtDelta(sliders.talent)}, ` +
-        `compute cost ${fmtDelta(sliders.compute)}.`;
-      const res = await fetch('/api/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario }),
-      });
-      const data = (await res.json()) as SimulateResponse & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? `Simulation failed (${res.status})`);
-      setResult(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Simulation failed');
+  /** Run the real POST /api/simulate; the checklist narrates the wait. */
+  const execute = useCallback(
+    async (scenario: string) => {
+      setLoading(true);
+      setError(null);
       setResult(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [sliders]);
+      setChecklistPhase(CHECKLIST_ORDER[0]);
+
+      // Advance the checklist through the agent beats while the request
+      // is in flight; it holds at "Simulation" until the response lands.
+      let idx = 0;
+      const driver = window.setInterval(() => {
+        idx = Math.min(idx + 1, CHECKLIST_ORDER.length - 1);
+        setChecklistPhase(CHECKLIST_ORDER[idx]);
+      }, 1100);
+      timers.current.push(driver);
+
+      try {
+        const res = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario }),
+        });
+        const data = (await res.json()) as SimulateResponse & { error?: string };
+        if (!res.ok) throw new Error(data.error ?? `Simulation failed (${res.status})`);
+        window.clearInterval(driver);
+        // Finale beat: let "World Ready" land before revealing the results.
+        setChecklistPhase('ready');
+        const reveal = window.setTimeout(
+          () => {
+            setResult(data);
+            setLoading(false);
+          },
+          reduced ? 350 : 1300,
+        );
+        timers.current.push(reveal);
+      } catch (e) {
+        window.clearInterval(driver);
+        setError(e instanceof Error ? e.message : 'Simulation failed');
+        setResult(null);
+        setLoading(false);
+      }
+    },
+    [reduced],
+  );
+
+  const run = useCallback(() => {
+    const scenario =
+      `What-if vs baseline: AI investment ${fmtDelta(sliders.aiInvestment)}, ` +
+      `regulation pressure ${fmtDelta(sliders.regulation)}, ` +
+      `talent supply ${fmtDelta(sliders.talent)}, ` +
+      `compute cost ${fmtDelta(sliders.compute)}.`;
+    void execute(scenario);
+  }, [sliders, execute]);
+
+  const runPreset = useCallback(
+    (preset: Preset) => {
+      setActivePreset(preset.id);
+      setSliders(preset.sliders);
+      const scenario =
+        `${preset.scenario} Levers vs baseline: AI investment ${fmtDelta(preset.sliders.aiInvestment)}, ` +
+        `regulation pressure ${fmtDelta(preset.sliders.regulation)}, ` +
+        `talent supply ${fmtDelta(preset.sliders.talent)}, ` +
+        `compute cost ${fmtDelta(preset.sliders.compute)}.`;
+      void execute(scenario);
+    },
+    [execute],
+  );
 
   const reset = useCallback(() => {
     setSliders(DEFAULT_SLIDERS);
+    setActivePreset(null);
     setResult(null);
     setError(null);
+  }, []);
+
+  const setSlider = useCallback((key: SliderKey, value: number) => {
+    setActivePreset(null);
+    setSliders((s) => ({ ...s, [key]: value }));
   }, []);
 
   const byId = useMemo(
@@ -429,10 +558,67 @@ export default function SimulatePage(): React.JSX.Element {
             Scenario Lab
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted">
-            Nudge the levers, then project a hypothetical cascade onto the world
-            graph. Simulated outcomes are clearly labeled — never predictions.
+            Pick a preset scenario or nudge the levers yourself, then project a
+            hypothetical cascade onto the world graph. Simulated outcomes are
+            clearly labeled — never predictions.
           </p>
         </motion.header>
+
+        {/* Preset scenario cards ------------------------------------------ */}
+        <motion.section
+          variants={enterUp}
+          initial="hidden"
+          animate="show"
+          aria-label="Preset scenarios"
+          className="mt-6"
+        >
+          <div className="glass">
+            <h4>Preset scenarios</h4>
+            <p className="mt-1 text-[12px] text-muted">
+              One tap sets the levers and runs the real simulator against the
+              world graph.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {PRESETS.map((preset) => {
+                const Icon = preset.icon;
+                const active = activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => runPreset(preset)}
+                    disabled={loading || !world}
+                    aria-pressed={active}
+                    className={cn(
+                      'group flex flex-col gap-2 rounded-2xl border p-4 text-left transition-all duration-200',
+                      'disabled:cursor-not-allowed disabled:opacity-50',
+                      active
+                        ? 'border-gold/70 bg-gold/10 shadow-[0_0_24px_rgba(245,185,66,0.15)]'
+                        : 'border-line bg-white/[0.02] hover:border-gold/50 hover:bg-gold/[0.06]',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'grid h-9 w-9 place-items-center rounded-xl border transition-colors',
+                        active
+                          ? 'border-gold/60 text-gold'
+                          : 'border-line text-muted group-hover:border-gold/40 group-hover:text-gold',
+                      )}
+                    >
+                      <Icon size={18} aria-hidden="true" strokeWidth={1.75} />
+                    </span>
+                    <span className="text-[13px] font-semibold leading-snug text-ink">
+                      {preset.question}
+                    </span>
+                    <span className="text-[11px] leading-relaxed text-muted">
+                      {preset.blurb}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
 
         <motion.div
           variants={container}
@@ -470,9 +656,7 @@ export default function SimulatePage(): React.JSX.Element {
                         max={100}
                         step={5}
                         value={value}
-                        onChange={(e) =>
-                          setSliders((s) => ({ ...s, [def.key]: Number(e.target.value) }))
-                        }
+                        onChange={(e) => setSlider(def.key, Number(e.target.value))}
                         className="mt-2"
                         aria-describedby={`hint-${def.key}`}
                       />
@@ -515,9 +699,13 @@ export default function SimulatePage(): React.JSX.Element {
 
           {/* (b) Simulated outcome ---------------------------------------- */}
           <motion.section variants={enterUp} aria-label="Simulated outcome">
-            <div className="glass h-full">
+            <div className="glass h-full" aria-busy={loading || undefined}>
               <h4>Simulated outcome</h4>
-              {error ? (
+              {loading ? (
+                <div className="px-2 py-6">
+                  <AgentChecklist phase={checklistPhase} />
+                </div>
+              ) : error ? (
                 <div className="flex items-start gap-3 rounded-xl border border-red/40 bg-red/10 p-4">
                   <TriangleAlert size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-red" />
                   <div>
@@ -527,8 +715,8 @@ export default function SimulatePage(): React.JSX.Element {
                 </div>
               ) : !result ? (
                 <EmptyState
-                  message={loading ? 'Projecting cascade…' : 'No simulation run yet'}
-                  hint="Adjust the variables and press Run Simulation to project a hypothetical cascade."
+                  message="No simulation run yet"
+                  hint="Pick a preset scenario above, or adjust the variables and press Run Simulation to project a hypothetical cascade."
                 />
               ) : result.affected.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
@@ -541,7 +729,7 @@ export default function SimulatePage(): React.JSX.Element {
                   </p>
                 </div>
               ) : (
-                <motion.div variants={enter}>
+                <motion.div variants={enter} aria-live="polite">
                   <SimGraph
                     nodes={simNodes}
                     edges={simEdges}

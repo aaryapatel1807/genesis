@@ -2,19 +2,21 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Search, X, Zap } from 'lucide-react';
 import { GEN_PHASE_META } from '@/lib/generation';
+import { CATEGORIES, categoryOf } from '@/lib/category';
 import { useWorldStore } from '@/stores/useWorldStore';
 import { GenerationSequence } from '@/components/GenerationSequence';
+import { AgentChecklist } from '@/components/AgentChecklist';
+import { FloatingAgents } from '@/components/FloatingAgents';
+import { EntityInspector } from '@/components/EntityInspector';
+import { BottomDock } from '@/components/BottomDock';
 import { Sheet } from '@/components/ui/sheet';
 import { useMotionVariants } from '@/lib/motion';
 import { cn } from '@/lib/cn';
 import { AppShell } from '@/components/layout/AppShell';
-import { GlassPanel } from '@/components/dash/GlassPanel';
-import { StatPanel } from '@/components/dash/StatPanel';
-import { AgentPanel } from '@/components/dash/AgentPanel';
 import { Button } from '@/components/ui/button';
 import type {
   UniverseGraphHandle,
@@ -25,7 +27,6 @@ import type {
   ExpandResponse,
   GEdge,
   GNode,
-  NodeType,
   SimCascadeItem,
   SimulateResponse,
   World,
@@ -36,6 +37,7 @@ import { SerendipityButton } from '@/components/SerendipityButton';
 import { CreditPill } from '@/components/CreditPill';
 import { Toast } from '@/components/Toast';
 import { EmptyState } from '@/components/EmptyState';
+import { TimeSlider } from '@/components/TimeSlider';
 
 const UniverseGraph = dynamic(
   () => import('@/components/UniverseGraph').then((m) => m.UniverseGraph),
@@ -56,41 +58,6 @@ const LATEST_YEAR = 2026;
 /** Per-session expansion budget (mirrors lib/agents/memory.ts EXPANSION_BUDGET). */
 const EXPANSION_BUDGET = 10;
 const SESSION_KEY = 'genesis-session-id';
-
-/** Full class literals so Tailwind's scanner picks up every type color. */
-const TYPE_DOT: Record<NodeType, string> = {
-  company: 'bg-n-company',
-  researcher: 'bg-n-researcher',
-  university: 'bg-n-university',
-  product: 'bg-n-product',
-  startup: 'bg-n-startup',
-  funder: 'bg-n-funder',
-  patent: 'bg-n-patent',
-  event: 'bg-n-event',
-  technology: 'bg-n-technology',
-  paper: 'bg-n-paper',
-  job: 'bg-n-job',
-  country: 'bg-n-country',
-  government: 'bg-n-government',
-  law: 'bg-n-law',
-};
-
-const TYPE_LABEL: Record<NodeType, string> = {
-  company: 'Company',
-  researcher: 'Researcher',
-  university: 'University',
-  product: 'Product',
-  startup: 'Startup',
-  funder: 'Funder',
-  patent: 'Patent',
-  event: 'Event',
-  technology: 'Technology',
-  paper: 'Paper',
-  job: 'Job',
-  country: 'Country',
-  government: 'Government',
-  law: 'Law',
-};
 
 class ApiError extends Error {
   status: number;
@@ -115,14 +82,41 @@ function severityToImpact(severity: string): SimCascadeItem['impact'] {
   return 'low';
 }
 
-function pctDelta(current: number, previous: number): string | undefined {
-  if (previous <= 0) return undefined;
-  const d = ((current - previous) / previous) * 100;
-  return `${d >= 0 ? '+' : ''}${Math.round(d)}%`;
+/** Human relative time for the stat strip, e.g. "23h ago". */
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'unknown';
+  const diff = Date.now() - then;
+  if (diff < 0) return 'just now';
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function StatItem({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
+  return (
+    <div title={title}>
+      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+    </div>
+  );
 }
 
 function WorldView() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const graphHandleRef = useRef<UniverseGraphHandle | null>(null);
   const reqRef = useRef(0);
@@ -162,19 +156,22 @@ function WorldView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [year, setYear] = useState<number>(LATEST_YEAR);
+  /** Inspector target — node click opens the slide-in inspector, graph stays. */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [cascadeItems, setCascadeItems] = useState<SimCascadeItem[]>([]);
   const [affected, setAffected] = useState<string[]>([]);
   const [expandingId, setExpandingId] = useState<string | null>(null);
-  const [expandEmptyIds, setExpandEmptyIds] = useState<Set<string>>(new Set());
   /** Entity filter — decorative-but-functional search under the canvas. */
   const [filter, setFilter] = useState('');
-  /** 2024 snapshot, used to compute "vs 2024" stat deltas. */
-  const [baseline, setBaseline] = useState<World | null>(null);
+  /** Category filter — null = all categories, otherwise the active set. */
+  const [activeCategories, setActiveCategories] = useState<string[] | null>(null);
   /** True once the first-load generation sequence has completed. */
   const [introDone, setIntroDone] = useState(false);
+  /** World-search query in the load-failure empty state. */
+  const [emptyQuery, setEmptyQuery] = useState('');
   const worldReadyRef = useRef(false);
 
   // Global UI state (zustand): generation phase, toast, announcements.
@@ -272,20 +269,19 @@ function WorldView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Baseline snapshot for "vs 2024" deltas — best-effort, never blocks.
-  useEffect(() => {
-    let cancelled = false;
-    void fetchJson<World>('/api/world/snapshot/2024')
-      .then((data) => {
-        if (!cancelled) setBaseline(data);
-      })
-      .catch(() => {
-        // Deltas simply stay hidden when the snapshot can't load.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  /** Timeline scrubbing — loads a historical snapshot without re-running
+      the generation sequence (new nodes bloom in on the existing canvas). */
+  const handleYearChange = useCallback(
+    (y: number) => {
+      if (y === year || !YEARS.includes(y)) return;
+      setYear(y);
+      setSelectedId(null);
+      setSelectedEdgeId(null);
+      reqRef.current += 1;
+      void loadYear(y, reqRef.current);
+    },
+    [year, loadYear],
+  );
 
   const nodesById = useMemo(
     () => new Map<string, GNode>(world?.nodes.map((n) => [n.id, n]) ?? []),
@@ -301,16 +297,15 @@ function WorldView() {
     : null;
 
   // Entity filter: matches node name or type, edges survive only when both
-  // endpoints survive (decorative-but-functional).
+  // endpoints survive (decorative-but-functional). Category filtering is
+  // visual (UniverseGraph dims non-matching nodes) and layers on top.
   const filtered = useMemo(() => {
     if (!world) return { nodes: [] as GNode[], edges: [] as GEdge[] };
     const q = filter.trim().toLowerCase();
     if (!q) return { nodes: world.nodes, edges: world.edges };
     const nodes = world.nodes.filter(
       (n) =>
-        n.name.toLowerCase().includes(q) ||
-        n.type.toLowerCase().includes(q) ||
-        (TYPE_LABEL[n.type] ?? n.type).toLowerCase().includes(q),
+        n.name.toLowerCase().includes(q) || n.type.toLowerCase().includes(q),
     );
     const keep = new Set(nodes.map((n) => n.id));
     const edges = world.edges.filter((e) => keep.has(e.source) && keep.has(e.target));
@@ -332,71 +327,53 @@ function WorldView() {
     return d;
   }, [world, simActive, pulsing]);
 
-  const communities = useMemo(
-    () => new Set(world?.nodes.map((n) => n.type) ?? []).size,
-    [world],
-  );
-  const baselineCommunities = useMemo(
-    () => new Set(baseline?.nodes.map((n) => n.type) ?? []).size,
-    [baseline],
-  );
-
-  const stats = useMemo(() => {
-    if (!world) return [];
-    return [
-      {
-        label: 'Nodes',
-        value: String(world.meta.node_count),
-        delta: baseline ? pctDelta(world.meta.node_count, baseline.meta.node_count) : undefined,
-      },
-      {
-        label: 'Edges',
-        value: String(world.meta.edge_count),
-        delta: baseline ? pctDelta(world.meta.edge_count, baseline.meta.edge_count) : undefined,
-      },
-      {
-        label: 'Communities',
-        value: String(communities),
-        delta: baseline ? pctDelta(communities, baselineCommunities) : undefined,
-      },
-    ];
-  }, [world, baseline, communities, baselineCommunities]);
-
-  const topEntities = useMemo(() => {
-    if (!world) return [];
-    return [...world.nodes].sort((a, b) => b.influence - a.influence).slice(0, 6);
+  /** Stat strip: topic, counts, average evidence confidence, build age.
+      The "updated" age is the dataset build time, labelled honestly. */
+  const avgConfidence = useMemo(() => {
+    if (!world || world.nodes.length === 0) return null;
+    const sum = world.nodes.reduce(
+      (a, n) => a + (n.reality?.confidence ?? 0),
+      0,
+    );
+    return Math.round(sum / world.nodes.length);
   }, [world]);
 
-  const agentGroups = useMemo(
-    () => [
-      [
-        { name: 'Analyst', detail: 'planner · drafting investigation plans', pct: 78 },
-        { name: 'Explorer', detail: 'explorer · crawling entity candidates', pct: 64 },
-        { name: 'Mapper', detail: 'relationship · wiring the relationship mesh', pct: 71 },
-        {
-          name: 'Validator',
-          detail: `evidence · ${world?.meta.source_count ?? 0} sources cross-checked`,
-          pct: 92,
-        },
-      ],
-      [
-        { name: 'Ranker', detail: 'ranking · scoring entity influence', pct: 88 },
-        { name: 'Simulator', detail: 'simulation · running what-if scenarios', pct: 57 },
-        { name: 'Narrator', detail: 'narrator · composing world storylines', pct: 66 },
-        { name: 'Curator', detail: 'search · live search via SerpApi', pct: 45 },
-      ],
-    ],
-    [world],
+  const builtAt = world?.meta.built_at ?? null;
+  const updatedAgo = useMemo(
+    () => (builtAt ? relativeTime(builtAt) : null),
+    [builtAt],
   );
 
-  /** Flattened agent roster for the single "Active AI Agents" panel. */
-  const allAgents = useMemo(() => agentGroups.flat(), [agentGroups]);
+  // Category chips — toggle buttons with aria-pressed. "All" resets.
+  const toggleCategory = useCallback(
+    (id: string) => {
+      setActiveCategories((prev) => {
+        const next =
+          prev === null
+            ? [id]
+            : prev.includes(id)
+              ? prev.filter((c) => c !== id)
+              : [...prev, id];
+        const result = next.length === 0 ? null : next;
+        const names =
+          result === null
+            ? 'all categories'
+            : result
+                .map((c) => CATEGORIES.find((cat) => cat.id === c)?.label ?? c)
+                .join(', ');
+        announce(`Category filter: ${names}.`);
+        return result;
+      });
+    },
+    [announce],
+  );
 
   // Esc: close panels first, then reset the simulation.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
-      if (selectedEdgeId !== null || simOpen) {
+      if (selectedId !== null || selectedEdgeId !== null || simOpen) {
+        setSelectedId(null);
         setSelectedEdgeId(null);
         setSimOpen(false);
       } else if (cascadeItems.length > 0 || simulating) {
@@ -408,21 +385,55 @@ function WorldView() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEdgeId, simOpen, cascadeItems.length, simulating, announce]);
+  }, [selectedId, selectedEdgeId, simOpen, cascadeItems.length, simulating, announce]);
+
+  // Cross-component events from the dock/inspector (documented in BottomDock):
+  //  - genesis:filter { detail: { categories: string[] } } — entries may be
+  //    category ids ('companies') or raw entity types ('company'); normalize.
+  //  - genesis:select-node { detail: { nodeId: string } } — open the inspector.
+  useEffect(() => {
+    const onFilter = (e: Event): void => {
+      const detail = (e as CustomEvent).detail as
+        | { categories?: string[] }
+        | undefined;
+      const raw = detail?.categories;
+      if (!raw || raw.length === 0) {
+        setActiveCategories(null);
+        return;
+      }
+      const catIds = new Set(CATEGORIES.map((c) => c.id));
+      const mapped = raw.map((v) =>
+        catIds.has(v) ? v : categoryOf(v).id,
+      );
+      setActiveCategories(Array.from(new Set(mapped)));
+      announce(`Graph filtered to ${mapped.length} categor${mapped.length === 1 ? 'y' : 'ies'}.`);
+    };
+    const onSelectNode = (e: Event): void => {
+      const detail = (e as CustomEvent).detail as { nodeId?: string } | undefined;
+      if (detail?.nodeId) setSelectedId(detail.nodeId);
+    };
+    window.addEventListener('genesis:filter', onFilter);
+    window.addEventListener('genesis:select-node', onSelectNode);
+    return () => {
+      window.removeEventListener('genesis:filter', onFilter);
+      window.removeEventListener('genesis:select-node', onSelectNode);
+    };
+  }, [announce]);
 
   const closePanels = useCallback(() => {
+    setSelectedId(null);
     setSelectedEdgeId(null);
     setSimOpen(false);
   }, []);
 
-  const handleNodeClick = useCallback(
-    (node: GNode) => {
-      router.push(`/entity/${node.id}`);
-    },
-    [router],
-  );
+  const handleNodeClick = useCallback((node: GNode) => {
+    // Inspector is the new primary — the graph stays put.
+    setSelectedEdgeId(null);
+    setSelectedId(node.id);
+  }, []);
 
   const handleEdgeClick = useCallback((edge: GEdge) => {
+    setSelectedId(null);
     setSimOpen(false);
     setSelectedEdgeId(edge.id);
   }, []);
@@ -453,15 +464,9 @@ function WorldView() {
           showToast(data.note, 'info');
         }
         if (freshNodes.length === 0 && freshEdges.length === 0) {
-          setExpandEmptyIds((s) => new Set(s).add(nodeId));
           announce('No further entities found in live search.');
           return;
         }
-        setExpandEmptyIds((s) => {
-          const next = new Set(s);
-          next.delete(nodeId);
-          return next;
-        });
         setWorld((prev) =>
           prev
             ? {
@@ -546,107 +551,168 @@ function WorldView() {
     const top = sorted.slice(0, Math.max(5, Math.ceil(sorted.length * 0.25)));
     const pick = top[Math.floor(Math.random() * top.length)] ?? sorted[0];
     if (!pick) return;
-    setSelectedEdgeId(null);
-    setSimOpen(false);
+    closePanels();
     graphHandleRef.current?.flyTo(pick.id);
     announce(`Serendipity: flying to ${pick.name}.`);
-  }, [world, announce]);
+  }, [world, announce, closePanels]);
+
+  /** Load-failure empty state: the search is honest — this build ships one
+      pre-built world, so searching retries that load instead of faking a
+      new universe. */
+  const handleEmptySubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      showToast(
+        'This build ships one pre-built world — the AI ecosystem universe. Retrying that load.',
+        'info',
+      );
+      announce('Retrying the world load.');
+      reqRef.current += 1;
+      void loadYear(year, reqRef.current);
+    },
+    [showToast, announce, loadYear, year],
+  );
+
+  const categoryPressed = (id: string): boolean =>
+    activeCategories === null || activeCategories.includes(id);
 
   return (
     <AppShell chrome="app" title="Knowledge Graph">
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="cols c3 flex-1 p-3 sm:p-4"
-        >
-          {/* Left column — statistics + active entities */}
-          <motion.aside
-            variants={enterUp}
-            aria-label="Knowledge statistics"
-            className="flex min-h-0 flex-col gap-3"
-          >
-            <StatPanel title="Knowledge Statistics" stats={stats} footer="vs 2024 snapshot" />
-            <GlassPanel title="Active Entities" className="min-h-0 flex-1">
-              <ul className="flex flex-col gap-1">
-                {topEntities.map((node) => (
-                  <li key={node.id}>
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/entity/${node.id}`)}
-                      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[node.type])}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium text-ink group-hover:text-gold">
-                          {node.name}
-                        </span>
-                        <span className="block text-[11px] text-muted">
-                          {TYPE_LABEL[node.type]} · influence {node.influence}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </GlassPanel>
-          </motion.aside>
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+        <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-3">
+          {/* Stat strip */}
+          {world && (
+            <motion.header
+              variants={enterUp}
+              aria-label="World overview"
+              className="glass !p-4 sm:!p-5"
+            >
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
+                    World
+                  </p>
+                  <h1 className="truncate text-xl font-semibold text-ink sm:text-2xl">
+                    {world.meta.topic}
+                  </h1>
+                </div>
+                <StatItem label="Entities" value={String(world.meta.node_count)} />
+                <StatItem label="Relationships" value={String(world.meta.edge_count)} />
+                {avgConfidence !== null && (
+                  <StatItem label="Avg confidence" value={`${avgConfidence}%`} />
+                )}
+                {updatedAgo !== null && (
+                  <div className="sm:ml-auto" title={builtAt ?? undefined}>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+                      Updated
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-ink">{updatedAgo}</p>
+                    <p className="text-[11px] text-muted">dataset build time</p>
+                  </div>
+                )}
+              </div>
+            </motion.header>
+          )}
 
-          {/* Center — universe canvas + toolbar + filter */}
+          {/* Category filter chips — replace the old LayerBar */}
+          <motion.div
+            variants={enterUp}
+            role="group"
+            aria-label="Filter by category"
+            className="flex flex-wrap gap-2"
+          >
+            <button
+              type="button"
+              aria-pressed={activeCategories === null}
+              onClick={() => {
+                setActiveCategories(null);
+                announce('Category filter cleared — showing all categories.');
+              }}
+              className={cn('ghost', activeCategories === null && 'on')}
+            >
+              All
+            </button>
+            {CATEGORIES.map((c) => {
+              const pressed = categoryPressed(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => toggleCategory(c.id)}
+                  className={cn('ghost flex items-center gap-2', pressed && 'on')}
+                  style={
+                    pressed
+                      ? {
+                          borderColor: `var(--cat-${c.id})`,
+                          color: `var(--cat-${c.id})`,
+                          background: 'rgba(255,255,255,0.04)',
+                        }
+                      : undefined
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: `var(--cat-${c.id})` }}
+                  />
+                  {c.label}
+                </button>
+              );
+            })}
+          </motion.div>
+
+          {/* Toolbar + filter */}
+          <motion.div variants={enterUp} className="flex flex-wrap items-center gap-2">
+            <CreditPill used={credits.used} total={credits.total} />
+            <SerendipityButton onSurprise={handleSurprise} disabled={!world} />
+            <Button
+              variant={simOpen ? 'primary' : 'secondary'}
+              size="sm"
+              icon={<Zap size={16} aria-hidden="true" />}
+              aria-expanded={simOpen}
+              onClick={() => {
+                setSimOpen((open) => {
+                  if (!open) setSelectedEdgeId(null);
+                  return !open;
+                });
+              }}
+            >
+              Simulate
+            </Button>
+          </motion.div>
+
+          <motion.div variants={enterUp} role="search" className="search">
+            <Search size={15} aria-hidden="true" className="shrink-0" />
+            <label htmlFor="world-filter" className="sr-only">
+              Filter entities by name or type
+            </label>
+            <input
+              id="world-filter"
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter: researcher, startup, paper…"
+            />
+            {filter !== '' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Clear filter"
+                onClick={() => setFilter('')}
+              >
+                <X size={14} aria-hidden="true" />
+              </Button>
+            )}
+          </motion.div>
+
+          {/* Universe canvas */}
           <motion.section
             variants={enterUp}
             aria-label="Universe graph"
-            className="flex min-h-0 flex-col gap-3"
+            className="relative"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <CreditPill used={credits.used} total={credits.total} />
-              <SerendipityButton onSurprise={handleSurprise} disabled={!world} />
-              <Button
-                variant={simOpen ? 'primary' : 'secondary'}
-                size="sm"
-                icon={<Zap size={16} aria-hidden="true" />}
-                aria-expanded={simOpen}
-                onClick={() => {
-                  setSimOpen((open) => {
-                    if (!open) setSelectedEdgeId(null);
-                    return !open;
-                  });
-                }}
-              >
-                Simulate
-              </Button>
-            </div>
-
-            {/* Filter search pill */}
-            <div role="search" className="search">
-              <Search size={15} aria-hidden="true" className="shrink-0" />
-              <label htmlFor="world-filter" className="sr-only">
-                Filter entities by name or type
-              </label>
-              <input
-                id="world-filter"
-                type="search"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter: sector=climate, year=2024…"
-              />
-              {filter !== '' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Clear filter"
-                  onClick={() => setFilter('')}
-                >
-                  <X size={14} aria-hidden="true" />
-                </Button>
-              )}
-            </div>
-
-            <div className="glass relative h-[62vh] min-h-[420px] flex-1 overflow-hidden !p-0">
+            <div className="glass relative h-[62vh] min-h-[420px] overflow-hidden !p-0">
               {world && (
                 <UniverseGraph
                   ref={graphHandleRef}
@@ -656,6 +722,8 @@ function WorldView() {
                   onEdgeClick={handleEdgeClick}
                   dimmed={dimmed}
                   pulsing={pulsing}
+                  activeCategories={activeCategories}
+                  onCategoryToggle={toggleCategory}
                   introReveal={phase === 'blooming' || phase === 'ready'}
                   interactive={phase === 'ready'}
                   onNodeExpand={(node) => {
@@ -667,33 +735,29 @@ function WorldView() {
               {filter.trim() !== '' && world && (
                 <p
                   aria-live="polite"
-                  className="absolute left-3 top-3 rounded-full border border-line bg-void/80 px-3 py-1 font-mono text-[11px] text-muted backdrop-blur-md"
+                  className="absolute right-3 top-3 rounded-full border border-line bg-void/80 px-3 py-1 font-mono text-[11px] text-muted backdrop-blur-md"
                 >
                   {filtered.nodes.length} of {world.nodes.length} entities match
                 </p>
               )}
+              {/* Timeline scrubbing */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+                <div className="pointer-events-auto">
+                  <TimeSlider year={year} onChange={handleYearChange} />
+                </div>
+              </div>
             </div>
-
           </motion.section>
-
-          {/* Right column — pipeline agents */}
-          <motion.aside
-            variants={enterUp}
-            aria-label="Active AI agents"
-            className="flex min-h-0 flex-col gap-3"
-          >
-            <AgentPanel
-              title="Active AI Agents"
-              action={
-                <span className="tag" aria-label={`${allAgents.length} agents running`}>
-                  {allAgents.length} running
-                </span>
-              }
-              agents={allAgents}
-              className="min-h-0 flex-1"
-            />
-          </motion.aside>
         </motion.div>
+
+        {/* Floating agents — coordinator-owned overlay */}
+        <FloatingAgents phase={phase} />
+
+        {/* Entity inspector — slides in on node click, graph stays */}
+        <EntityInspector nodeId={selectedId} onClose={() => setSelectedId(null)} />
+
+        {/* Bottom dock — coordinator-owned */}
+        {world && <BottomDock world={world} />}
 
         {/* Edge panel — bottom sheet */}
         <AnimatePresence>
@@ -716,7 +780,7 @@ function WorldView() {
           )}
         </AnimatePresence>
 
-        {/* Simulator — left overlay */}
+        {/* Simulator — right overlay */}
         <AnimatePresence>
           {simOpen && (
             <Sheet
@@ -745,8 +809,16 @@ function WorldView() {
 
         {/* Generation sequence — the staged world birth.
             Always mounted: its internal AnimatePresence plays the blur-fade
-            exit when the phase reaches "ready". */}
+            exit when the phase reaches "ready". AgentChecklist rides in the
+            same overlay as the per-agent detail within the staged beats. */}
         <GenerationSequence />
+        {phase !== 'ready' && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-8 z-50 flex justify-center px-6">
+            <div className="pointer-events-auto w-full max-w-md">
+              <AgentChecklist phase={phase} />
+            </div>
+          </div>
+        )}
 
         {/* Snapshot loading — lightweight chip, the sequence already ran */}
         {introDone && loading && world && (
@@ -762,23 +834,43 @@ function WorldView() {
           </div>
         )}
 
-        {/* Load error */}
+        {/* Load failure — honest empty state, no fake data */}
         {loadError && !world && !loading && (
-          <div className="absolute inset-0 z-40 grid place-items-center bg-void/80">
-            <div className="glass w-full max-w-sm text-center">
-              <p className="text-[15px] font-semibold">The universe is offline</p>
-              <p className="mt-2 text-[13px] text-muted">{loadError}</p>
-              <Button
-                variant="primary"
-                size="md"
-                className="mt-4"
-                onClick={() => {
-                  reqRef.current += 1;
-                  void loadYear(year, reqRef.current);
-                }}
-              >
-                Retry
-              </Button>
+          <div className="absolute inset-0 z-40 grid place-items-center bg-void/80 p-6">
+            <div className="glass w-full max-w-md text-center">
+              <h2 className="text-xl font-semibold text-ink">
+                What world would you like to explore?
+              </h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                Genesis builds a living knowledge universe from live search —
+                companies, researchers, papers, funding and the relationships
+                between them, all evidence-backed. This build ships one
+                pre-built world: the AI ecosystem.
+              </p>
+              <form onSubmit={handleEmptySubmit} className="mt-5">
+                <div className="search searchbig mx-auto">
+                  <Search size={16} aria-hidden="true" className="shrink-0" />
+                  <label htmlFor="world-search" className="sr-only">
+                    Search for a world to explore
+                  </label>
+                  <input
+                    id="world-search"
+                    type="search"
+                    value={emptyQuery}
+                    onChange={(e) => setEmptyQuery(e.target.value)}
+                    placeholder="e.g. Artificial Intelligence"
+                  />
+                </div>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <Button variant="primary" size="md" type="submit">
+                    Explore the AI world
+                  </Button>
+                </div>
+              </form>
+              <p className="mt-3 text-[12px] text-muted">
+                {loadError} Custom world search is not available in this build —
+                no placeholder data will be generated.
+              </p>
             </div>
           </div>
         )}

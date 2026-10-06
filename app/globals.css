@@ -24,6 +24,16 @@
   --red: #ef4444;
   --r: 16px;
 
+  /* v2 semantic categories — mirror of lib/category.ts (single palette). */
+  --cat-companies: #6ea8fe;
+  --cat-research: #3ddc84;
+  --cat-people: #b48cf2;
+  --cat-products: #ff9f43;
+  --cat-funding: #f5c542;
+  --cat-news: #ff6b6b;
+  --cat-government: #7cc7ff;
+  --cat-other: #e9f2f3;
+
   --n-company: #2dd4bf;
   --n-researcher: #a78bfa;
   --n-university: #5aa9ff;

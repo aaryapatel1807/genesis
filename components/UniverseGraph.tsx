@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -14,7 +15,11 @@ import ForceGraph2D, {
   type ForceGraphNode,
 } from 'react-force-graph-2d';
 import {
-  NODE_COLORS,
+  CATEGORIES,
+  categoryOf,
+  type Category,
+} from '@/lib/category';
+import {
   type GEdge,
   type GNode,
   type NodeType,
@@ -42,6 +47,17 @@ export interface UniverseGraphProps {
    * Defaults to true.
    */
   interactive?: boolean;
+  /**
+   * Category filter. null (or an empty array) = every category visible.
+   * When set, non-matching nodes render dimmed/small and matching nodes
+   * glow; the transition tweens on the canvas (~180ms, eased).
+   */
+  activeCategories?: string[] | null;
+  /**
+   * Called when a legend pill is toggled. When provided the legend renders
+   * as keyboard-accessible toggle buttons; otherwise it is a static list.
+   */
+  onCategoryToggle?: (categoryId: string) => void;
 }
 
 export interface UniverseGraphHandle {
@@ -68,6 +84,35 @@ const EDGE_TOKEN: Record<Strength, { token: string; fallback: string; alpha: num
 };
 
 const edgeColorCache = new Map<string, string>();
+const categoryColorCache = new Map<string, string>();
+
+/**
+ * Category paint colors resolve from the --cat-* design tokens
+ * (globals.css) so the canvas never carries hardcoded hex — one cache per
+ * category, SSR-safe fallback to the lib/category.ts hex.
+ */
+function categoryPaintColor(cat: Category): string {
+  let color = categoryColorCache.get(cat.id);
+  if (!color) {
+    color = cat.color;
+    if (typeof document !== 'undefined') {
+      const v = getComputedStyle(document.documentElement)
+        .getPropertyValue(`--cat-${cat.id}`)
+        .trim();
+      if (v) color = v;
+    }
+    categoryColorCache.set(cat.id, color);
+  }
+  return color;
+}
+
+/** Normalise the filter prop: null/empty = every category visible. */
+function activeCategorySet(
+  activeCategories: string[] | null | undefined,
+): Set<string> | null {
+  if (!activeCategories || activeCategories.length === 0) return null;
+  return new Set(activeCategories);
+}
 
 /**
  * Edge colors resolve from the design tokens (globals.css) so the canvas
@@ -191,6 +236,16 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     const prevIdsRef = useRef<Set<string>>(new Set());
     const introRevealRef = useRef(introReveal);
     introRevealRef.current = introReveal;
+    const activeCatsRef = useRef(props.activeCategories ?? null);
+    activeCatsRef.current = props.activeCategories ?? null;
+    /**
+     * Per-node category-focus value (1 = full focus, 0 = filtered out).
+     * Animated toward its target each repaint tick so the filter
+     * transition tweens instead of snapping.
+     */
+    const focusRef = useRef(new Map<string, number>());
+    const bloomActiveRef = useRef(false);
+    bloomActiveRef.current = bloomActive;
 
     useEffect(() => {
       reducedMotionRef.current = window.matchMedia(
@@ -298,17 +353,59 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodes]);
 
-    // Repaint loop while bloom or simulation pulse is active.
+    // Repaint loop while bloom, simulation pulse, or the category-filter
+    // tween is active. stepCategoryFocus returns true while any node is
+    // still travelling toward its target focus value.
+    const stepCategoryFocus = useCallback((): boolean => {
+      const active = activeCategorySet(activeCatsRef.current);
+      const reduced = reducedMotionRef.current;
+      const map = focusRef.current;
+      const nodes = nodesRef.current;
+      const alive = new Set<string>();
+      let moving = false;
+      for (const n of nodes) {
+        alive.add(n.id);
+        const target =
+          active === null || active.has(categoryOf(n.type).id) ? 1 : 0;
+        const cur = map.get(n.id) ?? 1;
+        if (reduced) {
+          if (cur !== target) map.set(n.id, target);
+          continue;
+        }
+        if (Math.abs(target - cur) < 0.02) {
+          if (cur !== target) map.set(n.id, target);
+          continue;
+        }
+        map.set(n.id, cur + (target - cur) * 0.18);
+        moving = true;
+      }
+      for (const id of map.keys()) {
+        if (!alive.has(id)) map.delete(id);
+      }
+      return moving;
+    }, []);
+
     useEffect(() => {
-      if (!bloomActive && pulsing.size === 0) return;
       let raf = 0;
+      let alive = true;
       const loop = (): void => {
+        if (!alive) return;
+        const tweening = stepCategoryFocus();
         graphRef.current?.refresh();
-        raf = requestAnimationFrame(loop);
+        if (
+          bloomActiveRef.current ||
+          pulsingRef.current.size > 0 ||
+          tweening
+        ) {
+          raf = requestAnimationFrame(loop);
+        }
       };
       raf = requestAnimationFrame(loop);
-      return () => cancelAnimationFrame(raf);
-    }, [bloomActive, pulsing]);
+      return () => {
+        alive = false;
+        cancelAnimationFrame(raf);
+      };
+    }, [bloomActive, pulsing, stepCategoryFocus, props.activeCategories]);
 
     useImperativeHandle(
       ref,
@@ -367,27 +464,53 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       if (typeof n.x !== 'number' || typeof n.y !== 'number') return;
 
       const id = String(n.id);
-      const color = NODE_COLORS[n.type] ?? '#e8edf4';
+      // v2: nodes paint with their semantic category color; teal/amber stay
+      // reserved for UI chrome (edges, highlights, accents).
+      const cat = categoryOf(n.type);
+      const color = categoryPaintColor(cat);
       const isDimmed = dimmedRef.current.has(id);
       const isPulsing = pulsingRef.current.has(id);
       const isHot = hoveredRef.current === id || focusedRef.current === id;
       const reduced = reducedMotionRef.current;
+
+      // Category-filter focus (1 = full, 0 = filtered out), tweened.
+      const focus = focusRef.current.get(id) ?? 1;
+      const filterOn = activeCategorySet(activeCatsRef.current) !== null;
 
       // Bloom progress (staggered per node, eased)
       const now = performance.now();
       const progress = bloomProgress(id, now);
 
       const baseR = 3 + Math.sqrt(Math.max(n.influence, 0));
-      const r = baseR * (0.5 + 0.5 * progress) * (isHot ? 1.15 : 1);
+      const r =
+        baseR *
+        (0.5 + 0.5 * progress) *
+        (0.55 + 0.45 * focus) *
+        (isHot ? 1.15 : 1);
 
       ctx.save();
-      ctx.globalAlpha = isDimmed ? 0.15 : progress;
+      ctx.globalAlpha = isDimmed ? 0.15 : (0.15 + 0.85 * focus) * progress;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 18 * focus;
       ctx.fillStyle = color;
       drawShape(ctx, n.x, n.y, Math.max(r, 0.5), shapeOf(n.type));
       ctx.fill();
       ctx.restore();
+
+      // Filtered-out nodes get no labels or glow; matching nodes glow.
+      if (filterOn && focus > 0.9 && !isDimmed) {
+        const halo = reduced ? 0.4 : 0.3 + 0.15 * Math.sin(now / 420);
+        ctx.save();
+        ctx.globalAlpha = halo;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6 / globalScale;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Simulation pulse: oscillating gold ring (static ring if reduced motion)
       if (isPulsing && !isDimmed) {
@@ -556,7 +679,83 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           cooldownTime={8000}
           warmupTicks={40}
         />
+
+        {/* Category legend — glass pill, keyboard-accessible toggles when
+            onCategoryToggle is wired (drives activeCategories above). */}
+        <LegendOverlay
+          activeCategories={props.activeCategories}
+          onCategoryToggle={props.onCategoryToggle}
+        />
       </div>
     );
   },
 );
+
+/**
+ * Category legend overlay (bottom-left glass pill). Rendered as
+ * keyboard-accessible toggle buttons when onCategoryToggle is wired;
+ * otherwise a static, screen-reader-friendly list.
+ */
+function LegendOverlay({
+  activeCategories,
+  onCategoryToggle,
+}: {
+  activeCategories?: string[] | null;
+  onCategoryToggle?: (categoryId: string) => void;
+}): React.JSX.Element {
+  const isPressed = (id: string): boolean =>
+    activeCategories === null ||
+    activeCategories === undefined ||
+    activeCategories.length === 0 ||
+    activeCategories.includes(id);
+
+  return (
+    <div className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]">
+      <div
+        role="group"
+        aria-label="Node categories"
+        className="glass flex !flex-row flex-wrap items-center gap-1.5 !p-2"
+      >
+        {CATEGORIES.map((c) =>
+          onCategoryToggle ? (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={isPressed(c.id)}
+              onClick={() => onCategoryToggle(c.id)}
+              className="flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] text-muted transition-colors hover:text-ink focus-visible:outline-none"
+              style={
+                isPressed(c.id)
+                  ? {
+                      borderColor: `var(--cat-${c.id})`,
+                      color: `var(--cat-${c.id})`,
+                      background: 'rgba(255,255,255,0.04)',
+                    }
+                  : { borderColor: 'var(--line)' }
+              }
+            >
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: `var(--cat-${c.id})` }}
+              />
+              {c.label}
+            </button>
+          ) : (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 rounded-full border border-line px-2 py-1 text-[11px] text-muted"
+            >
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: `var(--cat-${c.id})` }}
+              />
+              {c.label}
+            </span>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
