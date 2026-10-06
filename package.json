@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "d3-force": "^3.0.0",
     "framer-motion": "^14.0.0",
     "groq-sdk": "^0.9.1",
     "lucide-react": "^1.52.0",
@@ -12,6 +13,7 @@
   },
   "description": "Genesis — Ask anything. Watch a world emerge. Cinematic AI-ecosystem knowledge universe.",
   "devDependencies": {
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^22.7.4",
     "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",

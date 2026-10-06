@@ -22,6 +22,16 @@ import {
   type Category,
 } from '@/lib/category';
 import { getTheme, type Theme } from '@/lib/theme';
+import { forceCollide, forceX, forceY } from 'd3-force';
+import {
+  CONTAIN_MAIN_RADIUS,
+  CONTAIN_SATELLITE_RADIUS,
+  computeDegrees,
+  edgeCurveSign,
+  initializePositions,
+  nodeRadius,
+  topLabelIds,
+} from '@/lib/graphLayout';
 import {
   type GEdge,
   type GNode,
@@ -67,17 +77,6 @@ export interface UniverseGraphHandle {
   flyTo: (nodeId: string) => void;
   /** Cinematic camera descent used by the generation sequence. */
   introZoom: () => void;
-}
-
-type Shape = 'circle' | 'square' | 'diamond' | 'triangle' | 'star';
-
-function shapeOf(type: NodeType): Shape {
-  if (type === 'university' || type === 'government' || type === 'country')
-    return 'square';
-  if (type === 'product' || type === 'paper') return 'diamond';
-  if (type === 'patent' || type === 'law') return 'triangle';
-  if (type === 'event') return 'star';
-  return 'circle';
 }
 
 const EDGE_TOKEN: Record<Strength, { token: string; fallback: string; lightFallback: string; alpha: number; width: number }> = {
@@ -207,48 +206,6 @@ function endpointId(p: unknown): string | null {
   return String(p);
 }
 
-function drawShape(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  shape: Shape,
-): void {
-  ctx.beginPath();
-  switch (shape) {
-    case 'square':
-      ctx.rect(x - r, y - r, r * 2, r * 2);
-      break;
-    case 'diamond':
-      ctx.moveTo(x, y - r);
-      ctx.lineTo(x + r, y);
-      ctx.lineTo(x, y + r);
-      ctx.lineTo(x - r, y);
-      ctx.closePath();
-      break;
-    case 'triangle':
-      ctx.moveTo(x, y - r);
-      ctx.lineTo(x + r, y + r * 0.9);
-      ctx.lineTo(x - r, y + r * 0.9);
-      ctx.closePath();
-      break;
-    case 'star': {
-      for (let i = 0; i < 10; i++) {
-        const rr = i % 2 === 0 ? r : r * 0.45;
-        const a = -Math.PI / 2 + (i * Math.PI) / 5;
-        const px = x + Math.cos(a) * rr;
-        const py = y + Math.sin(a) * rr;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      break;
-    }
-    default:
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-  }
-}
-
 const clamp01 = (v: number): number => Math.min(Math.max(v, 0), 1);
 const easeOutCubic = (v: number): number => 1 - Math.pow(1 - v, 3);
 
@@ -287,6 +244,63 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     introRevealRef.current = introReveal;
     const activeCatsRef = useRef(props.activeCategories ?? null);
     activeCatsRef.current = props.activeCategories ?? null;
+    /**
+     * Persistent node positions: settled coordinates survive re-renders so
+     * snapshot swaps and expansions never teleport the graph. New nodes get
+     * a clustered initial placement; everything else restores from here.
+     */
+    const posCacheRef = useRef(new Map<string, { x: number; y: number }>());
+    /** Ids parked on the satellite arc (tiny disconnected components). */
+    const satRef = useRef(new Set<string>());
+    /** Degree per node id (visual sizing) and the always-labelled top set. */
+    const degreeRef = useRef(new Map<string, number>());
+    const labelSetRef = useRef(new Set<string>());
+    /** Memoized deterministic edge-curvature signs. */
+    const curveSignRef = useRef(new Map<string, 1 | -1>());
+
+    /**
+     * Custom d3 force: soft containment. Nodes drifting beyond their allowed
+     * radius get eased back — the main cluster stays within
+     * CONTAIN_MAIN_RADIUS, satellites within CONTAIN_SATELLITE_RADIUS. This
+     * is what stops small components drifting off to nowhere.
+     */
+    const containmentRef = useRef<((alpha: number) => void) | null>(null);
+    if (containmentRef.current === null) {
+      let simNodes: PaintNode[] = [];
+      const force = (alpha: number): void => {
+        const sats = satRef.current;
+        for (const n of simNodes) {
+          if (typeof n.x !== 'number' || typeof n.y !== 'number') continue;
+          const maxR = sats.has(String(n.id))
+            ? CONTAIN_SATELLITE_RADIUS
+            : CONTAIN_MAIN_RADIUS;
+          const r = Math.hypot(n.x, n.y);
+          if (r > maxR) {
+            const k = ((r - maxR) / r) * alpha * 0.5;
+            n.vx = (n.vx ?? 0) - n.x * k;
+            n.vy = (n.vy ?? 0) - n.y * k;
+          }
+        }
+      };
+      (
+        force as unknown as { initialize: (nodes: PaintNode[]) => void }
+      ).initialize = (nodes) => {
+        simNodes = nodes;
+      };
+      containmentRef.current = force;
+    }
+
+    /** Write settled coordinates back to the cache (fired on engine stop). */
+    const snapshotPositions = useCallback((): void => {
+      const g = graphRef.current;
+      if (!g) return;
+      const cache = posCacheRef.current;
+      for (const n of g.graphData().nodes as unknown as PaintNode[]) {
+        if (typeof n.x === 'number' && typeof n.y === 'number') {
+          cache.set(String(n.id), { x: n.x, y: n.y });
+        }
+      }
+    }, []);
     /**
      * Per-node category-focus value (1 = full focus, 0 = filtered out).
      * Animated toward its target each repaint tick so the filter
@@ -415,6 +429,44 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodes]);
 
+    /**
+     * Force tuning — the library defaults are what produced the hairball
+     * (weak repulsion, no collision, uniform link distance). Tuned for
+     * ~74 nodes / ~120 edges:
+     * - charge: strong repulsion (-170) with a 600-unit range cap so
+     *   satellites aren't flung by the far side of the main cluster;
+     * - link distance by edge strength (strong ties pull tight);
+     * - collide: node radius + margin, so nodes never overlap;
+     * - gentle x/y gravity toward center;
+     * - contain: custom soft containment (see containmentRef).
+     * Reheats the simulation so data changes re-settle cleanly.
+     */
+    useEffect(() => {
+      const g = graphRef.current;
+      if (!g) return;
+      const charge = g.d3Force('charge');
+      charge?.strength(-170);
+      charge?.distanceMax(600);
+      const link = g.d3Force('link');
+      link?.distance((l: { strength?: Strength }) =>
+        l.strength === 'weak' ? 110 : l.strength === 'strong' ? 55 : 80,
+      );
+      const degrees = degreeRef.current;
+      g.d3Force(
+        'collide',
+        forceCollide<ForceGraphNode>()
+          .radius((d) => nodeRadius(degrees.get(String(d.id)) ?? 0) + 8)
+          .strength(0.85)
+          .iterations(2),
+      );
+      g.d3Force('x', forceX(0).strength(0.035));
+      g.d3Force('y', forceY(0).strength(0.035));
+      const contain = containmentRef.current;
+      if (contain) g.d3Force('contain', contain);
+      g.d3ReheatSimulation();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nodes, edges]);
+
     // Repaint loop while bloom, simulation pulse, or the category-filter
     // tween is active. stepCategoryFocus returns true while any node is
     // still travelling toward its target focus value.
@@ -498,13 +550,39 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       [],
     );
 
-    const graphData = useMemo(
-      () => ({
-        nodes: nodes as ForceGraphNode[],
+    const graphData = useMemo(() => {
+      // Clustered initial layout: nodes without coordinates start grouped
+      // by category on a ring (tiny components on the satellite arc).
+      // Settled nodes restore from the cache — never teleport.
+      const placements = initializePositions(nodes, edges);
+      const cache = posCacheRef.current;
+      const sats = satRef.current;
+      const alive = new Set<string>();
+      const gnodes = nodes.map((n) => {
+        alive.add(n.id);
+        const cached = cache.get(n.id);
+        if (cached) {
+          return { ...n, x: cached.x, y: cached.y } as ForceGraphNode;
+        }
+        const p = placements.get(n.id);
+        const x = p?.x ?? 0;
+        const y = p?.y ?? 0;
+        cache.set(n.id, { x, y });
+        if (p?.satellite) sats.add(n.id);
+        return { ...n, x, y } as ForceGraphNode;
+      });
+      // Prune ids that left the graph.
+      for (const id of [...cache.keys()]) if (!alive.has(id)) cache.delete(id);
+      for (const id of [...sats]) if (!alive.has(id)) sats.delete(id);
+      // Visual hierarchy inputs, shared with paint + forces.
+      const degrees = computeDegrees(nodes, edges);
+      degreeRef.current = degrees;
+      labelSetRef.current = topLabelIds(nodes, degrees, 12);
+      return {
+        nodes: gnodes,
         links: edges.map((e) => ({ ...e }) as unknown as ForceGraphLink),
-      }),
-      [nodes, edges],
-    );
+      };
+    }, [nodes, edges]);
 
     // Bloom progress for one node id: ids with no start entry (pre-existing
     // nodes) are fully visible. Shared by paintNode and paintLink so a link
@@ -543,7 +621,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const now = performance.now();
       const progress = bloomProgress(id, now);
 
-      const baseR = 3 + Math.sqrt(Math.max(n.influence, 0));
+      // Visual hierarchy: radius by degree (hubs read as hubs). Influence in
+      // the dataset spans a narrow band, so degree discriminates far better.
+      const degree = degreeRef.current.get(id) ?? 0;
+      const baseR = nodeRadius(degree);
       const r =
         baseR *
         (0.5 + 0.5 * progress) *
@@ -558,7 +639,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       ctx.shadowColor = color;
       ctx.shadowBlur = 18 * focus * glow;
       ctx.fillStyle = color;
-      drawShape(ctx, n.x, n.y, Math.max(r, 0.5), shapeOf(n.type));
+      // Circles only: shape variety was visual noise, not information —
+      // category is already encoded in color (see legend).
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, Math.max(r, 0.5), 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
@@ -594,9 +678,14 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         ctx.restore();
       }
 
-      // Labels: JetBrains Mono with a halo of the background color so they
-      // read on both themes; fill uses --ink (cream on dark, dark on light).
-      if ((isHot || globalScale > 1.6) && progress > 0.8 && !isDimmed) {
+      // Labels: only the top-12 most important nodes get permanent labels
+      // (JetBrains Mono with a theme-aware halo); everything else labels on
+      // hover/focus. No more label soup.
+      if (
+        (isHot || labelSetRef.current.has(id)) &&
+        progress > 0.8 &&
+        !isDimmed
+      ) {
         const fontSize = 12 / globalScale;
         ctx.font = `500 ${fontSize}px "JetBrains Mono", monospace`;
         ctx.textAlign = 'center';
@@ -652,9 +741,33 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       ctx.shadowColor = style.color;
       ctx.shadowBlur = 10 * glowScale(currentTheme());
       if (e.strength === 'weak') ctx.setLineDash([4 / globalScale, 3 / globalScale]);
+      // Gentle curvature breaks up the picket-fence effect of parallel
+      // straight edges; direction is deterministic per edge id.
+      const x1 = sObj.x;
+      const y1 = sObj.y ?? 0;
+      const x2 = tObj.x;
+      const y2 = tObj.y ?? 0;
+      let sign = curveSignRef.current.get(e.id);
+      if (sign === undefined) {
+        sign = edgeCurveSign(e.id);
+        curveSignRef.current.set(e.id, sign);
+      }
       ctx.beginPath();
-      ctx.moveTo(sObj.x, sObj.y ?? 0);
-      ctx.lineTo(tObj.x, tObj.y ?? 0);
+      ctx.moveTo(x1, y1);
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy);
+      if (len > 2) {
+        const k = 0.12 * sign;
+        ctx.quadraticCurveTo(
+          (x1 + x2) / 2 + (-dy / len) * len * k,
+          (y1 + y2) / 2 + (dx / len) * len * k,
+          x2,
+          y2,
+        );
+      } else {
+        ctx.lineTo(x2, y2);
+      }
       ctx.stroke();
       ctx.restore();
     };
@@ -744,7 +857,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           enableZoomPanInteraction={interactive}
           enableNodeDrag={interactive}
           cooldownTime={8000}
-          warmupTicks={40}
+          warmupTicks={90}
+          onEngineStop={snapshotPositions}
         />
 
         {/* Category legend — glass pill, keyboard-accessible toggles when

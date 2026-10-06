@@ -10,6 +10,24 @@ declare module 'react-force-graph-2d' {
     zoom(k: number, ms?: number): number;
     zoomToFit(ms?: number, padding?: number): void;
     refresh(): void;
+    /**
+     * d3 force accessors (force-graph). `d3Force(name)` returns the live
+     * force instance for tuning; `d3Force(name, fn)` registers a new one
+     * (d3 forces are callable, hence the function type).
+     */
+    d3Force(
+      forceName: string,
+      forceFn?: (alpha: number) => void,
+    ): D3ForceTunable | undefined;
+    d3ReheatSimulation(): void;
+    graphData(): { nodes: ForceGraphNode[]; links: ForceGraphLink[] };
+  }
+
+  /** Minimal surface of a d3 force instance — only what UniverseGraph tunes. */
+  export interface D3ForceTunable {
+    strength(value: number | ((d: any) => number)): D3ForceTunable;
+    distanceMax(value: number): D3ForceTunable;
+    distance(value: number | ((link: any) => number)): D3ForceTunable;
   }
 
   export interface ForceGraphNode {
@@ -58,6 +76,8 @@ declare module 'react-force-graph-2d' {
     d3AlphaDecay?: number;
     d3VelocityDecay?: number;
     warmupTicks?: number;
+    /** Fired when the d3 engine cools down — used to snapshot positions. */
+    onEngineStop?: () => void;
   }
 
   const ForceGraph2D: React.ForwardRefExoticComponent<
