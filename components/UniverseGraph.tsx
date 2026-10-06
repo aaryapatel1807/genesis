@@ -273,6 +273,20 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
      * library's animation frame, wiping the canvas permanently).
      */
     const liveNodesRef = useRef<ForceGraphNode[]>([]);
+    /**
+     * Spread-on-filter: isolating a category leaves its nodes sitting in
+     * their full-graph positions — a tight one-sided bundle. When a filter
+     * activates we glide the visible nodes to a centered, spread-out
+     * arrangement (radial expansion from the canvas centre, clamped to the
+     * visible ellipse); "All" glides them back. Pre-filter positions are
+     * stashed in preFilterRef so the canonical layout is never lost.
+     */
+    const SPREAD_FACTOR = 2.2;
+    const SPREAD_MAX_X = 520;
+    const SPREAD_MAX_Y = 250;
+    const spreadTargetsRef = useRef(new Map<string, { x: number; y: number }>());
+    const preFilterRef = useRef(new Map<string, { x: number; y: number }>());
+    const spreadingRef = useRef(false);
     /** Ids parked on the satellite arc (tiny disconnected components). */
     const satRef = useRef(new Set<string>());
     /** Degree per node id (visual sizing) and the always-labelled top set. */
@@ -539,12 +553,122 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       return moving;
     }, []);
 
+    /**
+     * Ease nodes toward their spread/restore targets (12% per frame).
+     * Returns true while any node is still travelling.
+     */
+    const stepSpread = useCallback((): boolean => {
+      if (!spreadingRef.current) return false;
+      const targets = spreadTargetsRef.current;
+      if (reducedMotionRef.current) {
+        for (const n of liveNodesRef.current) {
+          const pn = n as unknown as PaintNode;
+          const t = targets.get(String(pn.id));
+          if (t && typeof pn.x === 'number' && typeof pn.y === 'number') {
+            pn.x = t.x;
+            pn.y = t.y;
+          }
+        }
+        targets.clear();
+        spreadingRef.current = false;
+        return false;
+      }
+      let moving = false;
+      for (const n of liveNodesRef.current) {
+        const pn = n as unknown as PaintNode;
+        const t = targets.get(String(pn.id));
+        if (!t || typeof pn.x !== 'number' || typeof pn.y !== 'number') continue;
+        const nx = pn.x + (t.x - pn.x) * 0.12;
+        const ny = pn.y + (t.y - pn.y) * 0.12;
+        if (Math.abs(t.x - nx) < 0.6 && Math.abs(t.y - ny) < 0.6) {
+          pn.x = t.x;
+          pn.y = t.y;
+          targets.delete(String(pn.id));
+        } else {
+          pn.x = nx;
+          pn.y = ny;
+          moving = true;
+        }
+      }
+      if (targets.size === 0) spreadingRef.current = false;
+      return moving || spreadingRef.current;
+    }, []);
+
+    /**
+     * (Re)compute spread targets whenever the category selection changes.
+     * Filter on: stash the canonical layout, spread the visible subset
+     * around the canvas centre. Filter off ("All"): glide back to stashed
+     * positions.
+     */
+    useEffect(() => {
+      const active = activeCategorySet(props.activeCategories);
+      const live = liveNodesRef.current;
+      if (live.length === 0) return;
+      if (active === null) {
+        const prev = preFilterRef.current;
+        if (prev.size === 0) return;
+        const targets = new Map<string, { x: number; y: number }>();
+        for (const n of live) {
+          const pn = n as unknown as PaintNode;
+          if (typeof pn.x !== 'number' || typeof pn.y !== 'number') continue;
+          const p = prev.get(String(pn.id));
+          if (
+            p &&
+            (Math.abs(pn.x - p.x) > 1 || Math.abs(pn.y - p.y) > 1)
+          ) {
+            targets.set(String(pn.id), p);
+          }
+        }
+        prev.clear();
+        if (targets.size > 0) {
+          spreadTargetsRef.current = targets;
+          spreadingRef.current = true;
+        }
+        return;
+      }
+      const stash = new Map<string, { x: number; y: number }>();
+      const targets = new Map<string, { x: number; y: number }>();
+      // Visible subset, then its centroid — the spread recentres the subset
+      // on the canvas centre (0,0) and expands it, fixing the one-sided
+      // bundle instead of pushing it further off-centre.
+      const visible: { id: string; x: number; y: number }[] = [];
+      for (const n of live) {
+        const pn = n as unknown as PaintNode;
+        if (typeof pn.x !== 'number' || typeof pn.y !== 'number') continue;
+        const id = String(pn.id);
+        stash.set(id, { x: pn.x, y: pn.y });
+        if (active.has(categoryOf(pn.type).id)) {
+          visible.push({ id, x: pn.x, y: pn.y });
+        }
+      }
+      const cx =
+        visible.reduce((a, v) => a + v.x, 0) / Math.max(visible.length, 1);
+      const cy =
+        visible.reduce((a, v) => a + v.y, 0) / Math.max(visible.length, 1);
+      for (const v of visible) {
+        let tx = (v.x - cx) * SPREAD_FACTOR;
+        let ty = (v.y - cy) * SPREAD_FACTOR;
+        // Clamp to the visible ellipse so spread nodes stay on screen.
+        const er = Math.hypot(tx / SPREAD_MAX_X, ty / SPREAD_MAX_Y);
+        if (er > 1) {
+          tx /= er;
+          ty /= er;
+        }
+        targets.set(v.id, { x: tx, y: ty });
+      }
+      preFilterRef.current = stash;
+      spreadTargetsRef.current = targets;
+      spreadingRef.current = targets.size > 0;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.activeCategories]);
+
     useEffect(() => {
       let raf = 0;
       let alive = true;
       const loop = (): void => {
         if (!alive) return;
         const tweening = stepCategoryFocus();
+        const spreading = stepSpread();
         // Snapshot while animating so the position cache never goes stale;
         // safeRefresh is a no-op on library versions without refresh().
         snapshotPositions();
@@ -552,7 +676,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         if (
           bloomActiveRef.current ||
           pulsingRef.current.size > 0 ||
-          tweening
+          tweening ||
+          spreading
         ) {
           raf = requestAnimationFrame(loop);
         }
