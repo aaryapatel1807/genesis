@@ -101,7 +101,7 @@ export interface SimCascadeItem {
   impact: 'high' | 'medium' | 'low';
 }
 
-/** A node's connections, resolved by the world page for NodePanel. */
+/** A node's connections, resolved by the world page for the entity inspector. */
 export interface Connection {
   edge: GEdge;
   other: GNode;
