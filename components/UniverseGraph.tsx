@@ -200,6 +200,11 @@ interface PaintNode extends ForceGraphNode {
   name: string;
   type: NodeType;
   influence: number;
+  /** Anchor position — the node's designed home. The x/y gravity pulls
+   *  toward the anchor (not the canvas centre), so the settled layout
+   *  keeps its designed shape instead of contracting into a ball. */
+  ax: number;
+  ay: number;
 }
 
 interface PaintLink {
@@ -506,15 +511,22 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         l.strength === 'weak' ? 110 : l.strength === 'strong' ? 55 : 80,
       );
       const degrees = degreeRef.current;
+      g.d3Force('collide', forceCollide<ForceGraphNode>()
+        .radius((d) => nodeRadius(degrees.get(String(d.id)) ?? 0) + 8)
+        .strength(0.85)
+        .iterations(2));
+      // Anchor gravity: each node is pulled toward its own designed
+      // position (ax/ay), not the canvas centre. This is what keeps the
+      // clustered ring layout from contracting into a hairball as the
+      // link springs settle — the equilibrium now matches the design.
       g.d3Force(
-        'collide',
-        forceCollide<ForceGraphNode>()
-          .radius((d) => nodeRadius(degrees.get(String(d.id)) ?? 0) + 8)
-          .strength(0.85)
-          .iterations(2),
+        'x',
+        forceX<ForceGraphNode>((d) => (d as unknown as PaintNode).ax ?? 0).strength(0.12),
       );
-      g.d3Force('x', forceX(0).strength(0.035));
-      g.d3Force('y', forceY(0).strength(0.035));
+      g.d3Force(
+        'y',
+        forceY<ForceGraphNode>((d) => (d as unknown as PaintNode).ay ?? 0).strength(0.12),
+      );
       const contain = containmentRef.current;
       if (contain) g.d3Force('contain', contain);
       g.d3ReheatSimulation();
@@ -617,6 +629,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
             (Math.abs(pn.x - p.x) > 1 || Math.abs(pn.y - p.y) > 1)
           ) {
             targets.set(String(pn.id), p);
+            // Anchors follow: physics assists the glide home and then
+            // holds the canonical layout.
+            pn.ax = p.x;
+            pn.ay = p.y;
           }
         }
         prev.clear();
@@ -631,30 +647,37 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       // Visible subset, then its centroid — the spread recentres the subset
       // on the canvas centre (0,0) and expands it, fixing the one-sided
       // bundle instead of pushing it further off-centre.
-      const visible: { id: string; x: number; y: number }[] = [];
+      const visible: PaintNode[] = [];
       for (const n of live) {
         const pn = n as unknown as PaintNode;
         if (typeof pn.x !== 'number' || typeof pn.y !== 'number') continue;
         const id = String(pn.id);
         stash.set(id, { x: pn.x, y: pn.y });
         if (active.has(categoryOf(pn.type).id)) {
-          visible.push({ id, x: pn.x, y: pn.y });
+          visible.push(pn);
         }
       }
       const cx =
-        visible.reduce((a, v) => a + v.x, 0) / Math.max(visible.length, 1);
+        visible.reduce((a, v) => a + (v.x as number), 0) /
+        Math.max(visible.length, 1);
       const cy =
-        visible.reduce((a, v) => a + v.y, 0) / Math.max(visible.length, 1);
-      for (const v of visible) {
-        let tx = (v.x - cx) * SPREAD_FACTOR;
-        let ty = (v.y - cy) * SPREAD_FACTOR;
+        visible.reduce((a, v) => a + (v.y as number), 0) /
+        Math.max(visible.length, 1);
+      for (const pn of visible) {
+        const id = String(pn.id);
+        let tx = ((pn.x as number) - cx) * SPREAD_FACTOR;
+        let ty = ((pn.y as number) - cy) * SPREAD_FACTOR;
         // Clamp to the visible ellipse so spread nodes stay on screen.
         const er = Math.hypot(tx / SPREAD_MAX_X, ty / SPREAD_MAX_Y);
         if (er > 1) {
           tx /= er;
           ty /= er;
         }
-        targets.set(v.id, { x: tx, y: ty });
+        targets.set(id, { x: tx, y: ty });
+        // Anchors follow the spread: physics assists the glide outward
+        // and holds the airy arrangement while filtered.
+        pn.ax = tx;
+        pn.ay = ty;
       }
       preFilterRef.current = stash;
       spreadTargetsRef.current = targets;
@@ -696,8 +719,8 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           const target = nodesRef.current.find((n) => n.id === nodeId);
           const g = graphRef.current;
           if (!target || !g) return;
-          const px = (target as PaintNode).x;
-          const py = (target as PaintNode).y;
+          const px = (target as unknown as PaintNode).x;
+          const py = (target as unknown as PaintNode).y;
           if (typeof px !== 'number' || typeof py !== 'number') return;
           g.centerAt(px, py, 1400);
           g.zoom(2.4, 1400);
@@ -730,14 +753,20 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         alive.add(n.id);
         const cached = cache.get(n.id);
         if (cached) {
-          return { ...n, x: cached.x, y: cached.y } as ForceGraphNode;
+          return {
+            ...n,
+            x: cached.x,
+            y: cached.y,
+            ax: cached.x,
+            ay: cached.y,
+          } as ForceGraphNode;
         }
         const p = placements.get(n.id);
         const x = p?.x ?? 0;
         const y = p?.y ?? 0;
         cache.set(n.id, { x, y });
         if (p?.satellite) sats.add(n.id);
-        return { ...n, x, y } as ForceGraphNode;
+        return { ...n, x, y, ax: x, ay: y } as ForceGraphNode;
       });
       // Prune ids that left the graph.
       for (const id of [...cache.keys()]) if (!alive.has(id)) cache.delete(id);
@@ -1036,9 +1065,14 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
             setHoveredId(n && n.id !== undefined ? String(n.id) : null);
           }}
           onNodeDragEnd={(node) => {
+            // Drop the anchor where the user left the node: it stays put
+            // softly instead of being hard-pinned (and the position cache
+            // keeps it there across data changes).
             const n = node as unknown as PaintNode;
-            n.fx = n.x;
-            n.fy = n.y;
+            if (typeof n.x === 'number' && typeof n.y === 'number') {
+              n.ax = n.x;
+              n.ay = n.y;
+            }
             snapshotPositions();
           }}
           onBackgroundClick={() => {
