@@ -89,6 +89,20 @@ const edgeColorCache = new Map<string, string>();
 const categoryColorCache = new Map<string, string>();
 const tokenValueCache = new Map<string, string>();
 
+/**
+ * The installed react-force-graph-2d (1.29.x) only exposes the methods in its
+ * `methodNames` list on the component ref — refresh() is not among them, so a
+ * direct call throws "not a function". This wrapper degrades to a no-op
+ * instead of throwing inside animation callbacks.
+ */
+function safeRefresh(g: unknown): void {
+  try {
+    (g as { refresh?: () => void } | null)?.refresh?.();
+  } catch {
+    // Never let a repaint nudge break the frame loop.
+  }
+}
+
 /** Live theme, read at paint time from the <html> data-theme attribute. */
 function currentTheme(): Theme {
   return getTheme();
@@ -250,6 +264,15 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
      * a clustered initial placement; everything else restores from here.
      */
     const posCacheRef = useRef(new Map<string, { x: number; y: number }>());
+    /**
+     * The exact node objects handed to the force-graph library (from the
+     * graphData memo below). d3 mutates x/y/vx/vy on these in place, so this
+     * ref always holds live positions — used by snapshotPositions instead of
+     * the library's graphData() accessor, which this react-force-graph-2d
+     * version does not expose on its ref (calling it throws inside the
+     * library's animation frame, wiping the canvas permanently).
+     */
+    const liveNodesRef = useRef<ForceGraphNode[]>([]);
     /** Ids parked on the satellite arc (tiny disconnected components). */
     const satRef = useRef(new Set<string>());
     /** Degree per node id (visual sizing) and the always-labelled top set. */
@@ -290,15 +313,29 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       containmentRef.current = force;
     }
 
-    /** Write settled coordinates back to the cache (fired on engine stop). */
+    /**
+     * Write settled coordinates back to the cache. Reads the live node
+     * objects (see liveNodesRef) — never touches the library ref, and never
+     * throws: this runs inside the library's animation frame via
+     * onEngineStop, where a throw would kill the frame loop after the canvas
+     * was already wiped, leaving it empty forever.
+     */
     const snapshotPositions = useCallback((): void => {
-      const g = graphRef.current;
-      if (!g) return;
-      const cache = posCacheRef.current;
-      for (const n of g.graphData().nodes as unknown as PaintNode[]) {
-        if (typeof n.x === 'number' && typeof n.y === 'number') {
-          cache.set(String(n.id), { x: n.x, y: n.y });
+      try {
+        const cache = posCacheRef.current;
+        for (const n of liveNodesRef.current) {
+          const pn = n as unknown as PaintNode;
+          if (
+            typeof pn.x === 'number' &&
+            typeof pn.y === 'number' &&
+            Number.isFinite(pn.x) &&
+            Number.isFinite(pn.y)
+          ) {
+            cache.set(String(pn.id), { x: pn.x, y: pn.y });
+          }
         }
+      } catch {
+        // Intentionally silent — see above.
       }
     }, []);
     /**
@@ -331,10 +368,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
     }, []);
 
     // Theme changes re-resolve every cached token (caches are keyed per
-    // theme) and force a full repaint so the canvas follows the toggle.
+    // theme) and request a repaint so the canvas follows the toggle.
     useEffect(() => {
       const obs = new MutationObserver(() => {
-        graphRef.current?.refresh();
+        safeRefresh(graphRef.current);
       });
       obs.observe(document.documentElement, {
         attributes: true,
@@ -404,7 +441,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
         if (bloomTimerRef.current !== null) {
           window.clearTimeout(bloomTimerRef.current);
         }
+        // Persist the final layout so a remount restores it exactly.
+        snapshotPositions();
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     );
 
@@ -505,7 +545,10 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const loop = (): void => {
         if (!alive) return;
         const tweening = stepCategoryFocus();
-        graphRef.current?.refresh();
+        // Snapshot while animating so the position cache never goes stale;
+        // safeRefresh is a no-op on library versions without refresh().
+        snapshotPositions();
+        safeRefresh(graphRef.current);
         if (
           bloomActiveRef.current ||
           pulsingRef.current.size > 0 ||
@@ -578,6 +621,9 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const degrees = computeDegrees(nodes, edges);
       degreeRef.current = degrees;
       labelSetRef.current = topLabelIds(nodes, degrees, 12);
+      // Publish the live objects: d3 mutates x/y on these in place, so
+      // snapshotPositions can read settled coordinates without the library.
+      liveNodesRef.current = gnodes;
       return {
         nodes: gnodes,
         links: edges.map((e) => ({ ...e }) as unknown as ForceGraphLink),
@@ -850,13 +896,19 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
             const n = node as unknown as PaintNode;
             n.fx = n.x;
             n.fy = n.y;
+            snapshotPositions();
           }}
           onBackgroundClick={() => {
             callbacksRef.current.onBackgroundClick?.();
           }}
           enableZoomPanInteraction={interactive}
           enableNodeDrag={interactive}
-          cooldownTime={8000}
+          // No cooldown: the d3 engine ticks (and repaints) indefinitely.
+          // A stopped engine + any canvas clear (e.g. a wipe racing a throw
+          // in onEngineStop) used to leave the canvas permanently empty;
+          // with the engine alive the frame is always repainted. For 74
+          // nodes the per-tick cost at equilibrium is negligible.
+          cooldownTime={Number.POSITIVE_INFINITY}
           warmupTicks={90}
           onEngineStop={snapshotPositions}
         />
