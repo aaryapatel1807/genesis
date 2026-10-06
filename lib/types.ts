@@ -89,7 +89,50 @@ export interface SimulateResponse {
   label: string;
   affected: string[];
   cascades: SimCascade[];
+  /** Full round log (structurally compatible with SimRound in lib/agents/simulation.ts). */
+  rounds: SimRoundView[];
+  /** Personas of affected entities (compatible with Persona in lib/agents/personas.ts). */
+  personas: PersonaView[];
+  /** Structured forecast (compatible with Verdict in lib/agents/verdict.ts). */
+  verdict: VerdictView;
   note?: string;
+  isSimulation: true;
+}
+
+/** One entity hit in one simulation round — API view of SimRound. */
+export interface SimRoundView {
+  round: number;
+  nodeId: string;
+  nodeName: string;
+  effect: string;
+  severity: CascadeSeverity;
+  viaRelation: Relation | null;
+  viaNodeId: string | null;
+  reaction: string;
+}
+
+/** Persona of a simulated entity — API view of Persona. */
+export interface PersonaView {
+  nodeId: string;
+  name: string;
+  type: NodeType;
+  bio: string;
+  traits: string[];
+  stance: string;
+  influenceWeight: number;
+  activityLevel: 'low' | 'medium' | 'high';
+  voice: string;
+}
+
+/** Structured forecast — API view of Verdict. */
+export interface VerdictView {
+  forecast: string;
+  probability: number;
+  confidence: number;
+  signals: string[];
+  narratives: string[];
+  spread: number;
+  rounds: number;
   isSimulation: true;
 }
 
@@ -157,4 +200,13 @@ export interface SimulationLog {
   affected: string[];
   cascades: SimCascade[];
   sessionId?: string;
+  /** Multi-round engine: number of propagation rounds executed. */
+  rounds?: number;
+  /** Verdict forecast summary (structurally compatible with Verdict). */
+  verdict?: {
+    forecast: string;
+    probability: number;
+    confidence: number;
+    signals: string[];
+  };
 }

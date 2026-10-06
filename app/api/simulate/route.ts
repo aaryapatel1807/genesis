@@ -1,7 +1,12 @@
 /**
  * POST /api/simulate { scenario }
- * What-if scenario simulation over the world graph.
+ * What-if scenario simulation over the world graph (multi-round engine).
  * Every response carries the SIMULATION label (response contract, not decoration).
+ *
+ * The engine is fully deterministic without GROQ_API_KEY (keyword seeds +
+ * structural propagation + template effects), so demo mode now returns a
+ * complete run — rounds, personas, verdict — instead of empty arrays.
+ * With a key, one LLM call picks smarter seeds; propagation stays structural.
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -38,23 +43,6 @@ export async function POST(req: Request): Promise<NextResponse> {
       return err('world not built yet', 'WORLD_NOT_BUILT', 500);
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      await getDb().logSimulation({
-        at: new Date().toISOString(),
-        scenario,
-        affected: [],
-        cascades: [],
-      });
-      return NextResponse.json({
-        scenario,
-        label: SIM_LABEL,
-        affected: [],
-        cascades: [],
-        note: 'Simulator unavailable without GROQ_API_KEY.',
-        isSimulation: true,
-      });
-    }
-
     const result = await runSimulation(scenario, world);
     await getDb().logSimulation({
       at: new Date().toISOString(),
@@ -65,8 +53,24 @@ export async function POST(req: Request): Promise<NextResponse> {
         effect: c.effect,
         severity: c.severity,
       })),
+      rounds: result.verdict.rounds,
+      verdict: {
+        forecast: result.verdict.forecast,
+        probability: result.verdict.probability,
+        confidence: result.verdict.confidence,
+        signals: result.verdict.signals,
+      },
     });
-    return NextResponse.json({ scenario, label: SIM_LABEL, ...result });
+    return NextResponse.json({
+      scenario,
+      label: SIM_LABEL,
+      ...result,
+      ...(process.env.GROQ_API_KEY
+        ? {}
+        : {
+            note: 'Demo mode: keyword seeds + structural propagation (no GROQ_API_KEY).',
+          }),
+    });
   } catch {
     return err('simulation failed', 'SIMULATION_FAILED', 500);
   }
