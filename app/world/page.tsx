@@ -9,7 +9,6 @@ import { GEN_PHASE_META } from '@/lib/generation';
 import { CATEGORIES, categoryOf } from '@/lib/category';
 import { useWorldStore } from '@/stores/useWorldStore';
 import { GenerationSequence } from '@/components/GenerationSequence';
-import { AgentChecklist } from '@/components/AgentChecklist';
 import { FloatingAgents } from '@/components/FloatingAgents';
 import { EntityInspector } from '@/components/EntityInspector';
 import { BottomDock } from '@/components/BottomDock';
@@ -807,18 +806,10 @@ function WorldView() {
           <Toast />
         </div>
 
-        {/* Generation sequence — the staged world birth.
-            Always mounted: its internal AnimatePresence plays the blur-fade
-            exit when the phase reaches "ready". AgentChecklist rides in the
-            same overlay as the per-agent detail within the staged beats. */}
+        {/* Generation sequence — the staged world birth, now the single
+            loading narrative. The agent checklist lives inside the overlay
+            (see GenerationSequence); no second checklist is rendered here. */}
         <GenerationSequence />
-        {phase !== 'ready' && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-8 z-50 flex justify-center px-6">
-            <div className="pointer-events-auto w-full max-w-md">
-              <AgentChecklist phase={phase} />
-            </div>
-          </div>
-        )}
 
         {/* Snapshot loading — lightweight chip, the sequence already ran */}
         {introDone && loading && world && (

@@ -1,15 +1,14 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Check, Loader2 } from 'lucide-react';
 import {
   GEN_BEATS,
   GEN_PHASE_META,
   phaseIndex,
-  type GenPhase,
 } from '@/lib/generation';
 import { DURATION, GENESIS_EASE } from '@/lib/motion';
 import { useWorldStore } from '@/stores/useWorldStore';
+import { AgentChecklist } from '@/components/AgentChecklist';
 
 /**
  * The Genesis generation sequence overlay — the staged world birth.
@@ -69,43 +68,12 @@ export function GenerationSequence() {
               </AnimatePresence>
             </div>
 
-            {/* Beat checklist */}
-            <ol className="mx-auto mt-8 max-w-xs space-y-3 text-left">
-              {GEN_BEATS.map((beat: GenPhase) => {
-                const beatIdx = GEN_BEATS.indexOf(beat);
-                const done = beatIdx < idx || phase === 'blooming';
-                const current = beat === phase;
-                return (
-                  <li key={beat} className="flex items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className={`grid h-5 w-5 place-items-center rounded-full border transition-colors duration-300 ${
-                        done
-                          ? 'border-gold bg-gold/20 text-gold'
-                          : current
-                            ? 'border-gold/60 text-gold'
-                            : 'border-line text-muted/40'
-                      }`}
-                    >
-                      {done ? (
-                        <Check size={12} strokeWidth={2.5} />
-                      ) : current ? (
-                        <Loader2 size={12} className={reduced ? undefined : 'animate-spin'} />
-                      ) : (
-                        <span className="h-1 w-1 rounded-full bg-current" />
-                      )}
-                    </span>
-                    <span
-                      className={`text-[13px] transition-colors duration-300 ${
-                        done || current ? 'text-ink' : 'text-muted/50'
-                      }`}
-                    >
-                      {GEN_PHASE_META[beat].title}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            {/* Agent checklist — the single loading narrative. The v2 "wow"
+                moment: per-agent statuses replace the old beat list so the
+                overlay never shows two competing checklists. */}
+            <div className="mx-auto mt-8 max-w-xs text-left">
+              <AgentChecklist phase={phase} />
+            </div>
 
             {/* Thin gold progress hairline */}
             <div className="mt-8 h-px w-full overflow-hidden rounded-full bg-line">
