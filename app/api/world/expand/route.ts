@@ -1,14 +1,17 @@
 /**
  * POST /api/world/expand { nodeId }
- * Expand a node with live search (<=2 fresh SerpApi searches), capped per session.
- * Graceful degradation: missing keys -> cache-only graft, or an honest empty note.
+ * Expand a node. Resolution order:
+ *   1. Hardcoded curated KB (free, instant, zero keys) — the pure backend.
+ *   2. Cache-only graft when SerpApi/Groq keys are missing.
+ *   3. Live search (<=2 fresh SerpApi searches), capped per session.
  *
  * Session budget: the <=10/session cap is enforced against the DbAdapter's
  * durable session-budget store (data/session-budgets.json on JSON, sessions
  * table on Postgres) — never a process-local Map, which resets on every
- * serverless cold start. A missing x-session-id is a 400, never minted
- * server-side: minting a fresh id per request would hand every anonymous
- * caller an unlimited budget.
+ * serverless cold start. A missing x-session-id is a 400 on the key-consuming
+ * paths, never minted server-side: minting a fresh id per request would hand
+ * every anonymous caller an unlimited budget. The hardcoded path needs no
+ * session at all — it costs nothing.
  */
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -24,6 +27,7 @@ import { planExpansion } from '@/lib/agents/planner';
 import { verifyRelations } from '@/lib/agents/relationship';
 import { runSearchBundles, type QueryBundle, type TaggedSerpResult } from '@/lib/agents/search';
 import { cacheExpansion, getCachedExpansion, toNodes } from '@/lib/agents/worldBuilder';
+import { buildHardcodedGraft } from '@/lib/agents/hardcodedExpansions';
 
 const ENGINE: SearchEngine = 'google';
 const EXPANSION_BUDGET = 10;
@@ -147,9 +151,34 @@ export async function POST(req: Request): Promise<NextResponse> {
       return err('unknown node', 'UNKNOWN_NODE', 404);
     }
 
+    // --- Pure hardcoded backend: curated expansion first. Free, instant,
+    // no keys, no session, no budget burn. Everything works offline. ---
+    const sessionId = (req.headers.get('x-session-id') ?? '').trim();
+    const hardcoded = buildHardcodedGraft(world, node);
+    if (hardcoded) {
+      logExpand(Date.now() - started, 0, queryHashes);
+      if (hardcoded.addedNodes.length > 0 || hardcoded.addedEdges.length > 0) {
+        return NextResponse.json({
+          addedNodes: hardcoded.addedNodes,
+          addedEdges: hardcoded.addedEdges,
+          searchesUsed: 0,
+          cached: true,
+          sessionId,
+          note: 'Curated expansion — no search needed.',
+        });
+      }
+      return NextResponse.json({
+        addedNodes: [],
+        addedEdges: [],
+        note: 'Already fully expanded — no new entities in the curated universe.',
+        searchesUsed: 0,
+        cached: true,
+        sessionId,
+      });
+    }
+
     // The budget is keyed on this token — a missing header must be a client
     // error, never minted server-side (minting = unlimited budget).
-    const sessionId = (req.headers.get('x-session-id') ?? '').trim();
     if (!sessionId) {
       logExpand(Date.now() - started, 0, queryHashes);
       return err('x-session-id header is required', 'SESSION_REQUIRED', 400);

@@ -54,12 +54,27 @@ describe('POST /api/world/expand', () => {
     expect(res.status).toBe(404);
   });
 
-  it('rejects a missing x-session-id with 400, never mints one (BUG 5)', async () => {
+  it('serves the curated expansion with no session and no keys (pure backend)', async () => {
+    // The hardcoded path is free, so it needs no x-session-id and burns no
+    // budget. (The old BUG-5 400 only guards the key-consuming live path.)
     const world = await (await getWorld()).json();
-    const nodeId = world.nodes[0].id as string;
+    const nodeId = world.nodes.find((n: { id: string }) => n.id === 'n_openai').id as string;
     const res = await expand({ nodeId }); // no session header
-    expect(res.status).toBe(400);
-    expect((await res.json()).code).toBe('SESSION_REQUIRED');
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.addedNodes.length).toBeGreaterThan(0);
+    expect(json.searchesUsed).toBe(0);
+    expect(json.cached).toBe(true);
+    expect(json.note).toMatch(/curated/i);
+    // every grafted edge lands on a real node — never dangling
+    const alive = new Set([
+      ...world.nodes.map((n: { id: string }) => n.id),
+      ...json.addedNodes.map((n: { id: string }) => n.id),
+    ]);
+    for (const e of json.addedEdges) {
+      expect(alive.has(e.source)).toBe(true);
+      expect(alive.has(e.target)).toBe(true);
+    }
   });
 
   it('degrades honestly without keys and always returns searchesUsed (BUG 2)', async () => {
