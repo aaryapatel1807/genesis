@@ -663,6 +663,12 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const focus = focusRef.current.get(id) ?? 1;
       const filterOn = activeCategorySet(activeCatsRef.current) !== null;
 
+      // Hard filter: a fully filtered-out node is not painted at all — no
+      // dot, no label, no halo. The focus tween fades it out first; below
+      // the threshold it vanishes completely, leaving the clean
+      // isolated-category view (only selected nodes + their edges + glow).
+      if (filterOn && focus < 0.02) return;
+
       // Bloom progress (staggered per node, eased)
       const now = performance.now();
       const progress = bloomProgress(id, now);
@@ -681,7 +687,9 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       const glow = glowScale(theme);
 
       ctx.save();
-      ctx.globalAlpha = isDimmed ? 0.15 : (0.15 + 0.85 * focus) * progress;
+      // No alpha floor on the category focus: filtered-out nodes fade to
+      // fully invisible (the simulation-dim keeps its 0.15 floor).
+      ctx.globalAlpha = isDimmed ? 0.15 : focus * progress;
       ctx.shadowColor = color;
       ctx.shadowBlur = 18 * focus * glow;
       ctx.fillStyle = color;
@@ -726,11 +734,12 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
 
       // Labels: only the top-12 most important nodes get permanent labels
       // (JetBrains Mono with a theme-aware halo); everything else labels on
-      // hover/focus. No more label soup.
+      // hover/focus. No more label soup. Filtered-out nodes lose labels.
       if (
         (isHot || labelSetRef.current.has(id)) &&
         progress > 0.8 &&
-        !isDimmed
+        !isDimmed &&
+        (!filterOn || focus > 0.5)
       ) {
         const fontSize = 12 / globalScale;
         ctx.font = `500 ${fontSize}px "JetBrains Mono", monospace`;
@@ -763,6 +772,15 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
       if (!sObj || !tObj) return;
       if (typeof sObj.x !== 'number' || typeof tObj.x !== 'number') return;
 
+      // Hard category filter: an edge is visible only while both endpoints
+      // are. While the filter tween runs, the edge fades with its dimmer
+      // endpoint — no stray lines hanging off hidden nodes.
+      const filterOnL = activeCategorySet(activeCatsRef.current) !== null;
+      const sFocus = sId === null ? 1 : (focusRef.current.get(sId) ?? 1);
+      const tFocus = tId === null ? 1 : (focusRef.current.get(tId) ?? 1);
+      const edgeFocus = filterOnL ? Math.min(sFocus, tFocus) : 1;
+      if (filterOnL && edgeFocus < 0.02) return;
+
       const style = edgeStyle(e.strength);
       const isDimmed =
         (sId !== null && dimmedRef.current.has(sId)) ||
@@ -781,7 +799,7 @@ export const UniverseGraph = forwardRef<UniverseGraphHandle, UniverseGraphProps>
           bloomProgress(sId ?? '', nowL),
           bloomProgress(tId ?? '', nowL),
         ) * drawProgress;
-      ctx.globalAlpha = isDimmed ? 0.15 : style.alpha * linkProgress;
+      ctx.globalAlpha = isDimmed ? 0.15 : style.alpha * linkProgress * edgeFocus;
       ctx.strokeStyle = style.color;
       ctx.lineWidth = style.width / globalScale;
       ctx.shadowColor = style.color;
