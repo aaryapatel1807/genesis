@@ -2,15 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  CheckCircle2,
-  Circle,
-  Loader2,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
-import { GlassPanel } from '@/components/dash/GlassPanel';
 import { StatPanel } from '@/components/dash/StatPanel';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/EmptyState';
@@ -91,27 +84,18 @@ const STATUS_COPY: Record<StepState, { label: string; className: string }> = {
   error: { label: 'Failed', className: 'text-red' },
 };
 
-function StepIcon({ state }: { state: StepState }) {
-  if (state === 'done') {
-    return <CheckCircle2 size={20} aria-hidden="true" className="shrink-0 text-teal" />;
-  }
-  if (state === 'active') {
-    return (
-      <Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin text-gold" />
-    );
-  }
-  if (state === 'error') {
-    return <X size={20} aria-hidden="true" className="shrink-0 text-red" />;
-  }
-  return <Circle size={20} aria-hidden="true" className="shrink-0 text-muted/50" />;
+function dotClass(state: StepState): string {
+  if (state === 'done') return 'dot done';
+  if (state === 'active') return 'dot now';
+  return 'dot';
 }
 
-/** Animated dashed connector between pipeline steps (static under reduced motion). */
+/** Animated dashed connector between pipeline chips — lights teal as steps advance. */
 function Connector({ lit, reduced }: { lit: boolean; reduced: boolean }) {
   return (
     <motion.span
       aria-hidden="true"
-      className="ml-[9px] block h-6 w-px"
+      className="ml-[26px] block h-5 w-px"
       style={{
         backgroundImage:
           'repeating-linear-gradient(to bottom, var(--teal) 0 4px, transparent 4px 8px)',
@@ -242,27 +226,32 @@ export default function GeneratorPage() {
   };
 
   const etaSeconds = Math.max(0, TYPICAL_SECONDS - elapsedMs / 1000);
+  const doneCount = steps.filter((s) => s === 'done').length;
+  const progressPct = Math.round((doneCount / PIPELINE.length) * 100);
 
   return (
     <AppShell chrome="app" title="World Generator">
-      <motion.div variants={container} initial="hidden" animate="show" className="mx-auto w-full max-w-7xl">
-        <motion.div variants={enterUp} className="mb-6">
+      <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-6">
+        <motion.header variants={enterUp} initial="hidden" animate="show">
           <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             World Generator
           </h1>
           <p className="mt-1 text-sm text-muted">
             Generate synthetic knowledge domains from prompt
           </p>
-        </motion.div>
+        </motion.header>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* (a) Prompt input */}
-          <motion.div variants={enterUp}>
-            <GlassPanel title="Prompt Input" className="h-full">
-              <label
-                htmlFor="generator-prompt"
-                className="mb-2 block text-[11px] font-medium uppercase tracking-[0.16em] text-muted"
-              >
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="cols c2 mt-6"
+        >
+          {/* Prompt panel */}
+          <motion.section variants={enterUp} aria-label="Generation prompt">
+            <div className="glass h-full">
+              <h4>Prompt</h4>
+              <label htmlFor="generator-prompt" className="sr-only">
                 Generation prompt
               </label>
               <textarea
@@ -271,7 +260,7 @@ export default function GeneratorPage() {
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={6}
                 disabled={phase === 'generating'}
-                className="w-full resize-y rounded-xl border border-line bg-void/60 p-3.5 text-sm leading-relaxed text-ink placeholder:text-muted/50 backdrop-blur-md transition-colors focus:border-teal/60 focus:outline-none disabled:opacity-60"
+                className="disabled:opacity-60"
               />
               <Button
                 variant="primary"
@@ -280,7 +269,7 @@ export default function GeneratorPage() {
                 onClick={generate}
                 icon={<Sparkles size={16} aria-hidden="true" />}
               >
-                {phase === 'generating' ? 'Generating…' : 'Generate'}
+                {phase === 'generating' ? 'Generating…' : 'Generate World'}
               </Button>
 
               <div className="mt-4 border-t border-line/50 pt-4" aria-live="polite">
@@ -323,14 +312,11 @@ export default function GeneratorPage() {
                       <p className="text-xs leading-relaxed text-muted">{result.note}</p>
                     ) : null}
                     {result.addedNodes.length > 0 ? (
-                      <ul className="space-y-1.5">
+                      <ul>
                         {result.addedNodes.slice(0, 6).map((n) => (
-                          <li
-                            key={n.id}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-line/60 bg-void/40 px-3 py-2"
-                          >
-                            <span className="truncate text-xs text-ink">{n.name}</span>
-                            <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted">
+                          <li key={n.id} className="row">
+                            <span className="truncate text-[13px] text-ink">{n.name}</span>
+                            <span className="mono mut shrink-0 text-[10px] uppercase tracking-wider">
                               {n.type}
                             </span>
                           </li>
@@ -340,7 +326,7 @@ export default function GeneratorPage() {
                   </div>
                 ) : phase === 'generating' ? (
                   <p className="flex items-center gap-2 text-sm text-muted">
-                    <Loader2 size={15} aria-hidden="true" className="animate-spin text-gold" />
+                    <span aria-hidden="true" className="dot now" />
                     {anchorName
                       ? `Expanding from ${anchorName}…`
                       : 'Finding the best anchor node…'}
@@ -348,80 +334,99 @@ export default function GeneratorPage() {
                 ) : (
                   <EmptyState
                     message="No world generated yet."
-                    hint="Describe a domain above and press Generate — the pipeline will expand the live universe from your prompt."
+                    hint="Describe a domain above and press Generate World — the pipeline will expand the live universe from your prompt."
                   />
                 )}
               </div>
-            </GlassPanel>
-          </motion.div>
+            </div>
+          </motion.section>
 
-          {/* (b) Pipeline flow */}
-          <motion.div variants={enterUp}>
-            <GlassPanel title="Pipeline" className="h-full">
-              <ol aria-label="Generation pipeline">
-                {PIPELINE.map((step, i) => {
-                  const state = steps[i] as StepState;
-                  const active = state === 'active';
-                  return (
-                    <li key={step.id}>
-                      <div className="flex items-start gap-3">
-                        <StepIcon state={state} />
-                        <div className="min-w-0 pb-1">
-                          <p className="text-sm font-medium text-ink">{step.label}</p>
-                          <p className="text-xs text-muted">{step.detail}</p>
+          <div className="stack">
+            {/* Pipeline flow */}
+            <motion.section variants={enterUp} aria-label="Generation pipeline">
+              <div className="glass">
+                <h4>Pipeline</h4>
+                <ol aria-label="Generation pipeline steps">
+                  {PIPELINE.map((step, i) => {
+                    const state = steps[i] as StepState;
+                    const status = STATUS_COPY[state];
+                    const lit = state === 'done' || state === 'active';
+                    return (
+                      <li key={step.id}>
+                        <div
+                          className={cn(
+                            'flex items-center gap-3 rounded-full border px-4 py-2.5',
+                            lit ? 'border-teal/50' : 'border-line',
+                          )}
+                        >
+                          <span aria-hidden="true" className={dotClass(state)} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-ink">
+                              {step.label}
+                            </span>
+                            <span className="block text-[11px] text-muted">
+                              {step.detail}
+                            </span>
+                          </span>
+                          <span className={cn('shrink-0 text-xs', status.className)}>
+                            {status.label}
+                          </span>
                         </div>
-                      </div>
-                      {i < PIPELINE.length - 1 ? (
-                        <Connector lit={active || state === 'done'} reduced={reduced} />
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            </GlassPanel>
-          </motion.div>
+                        {i < PIPELINE.length - 1 ? (
+                          <Connector lit={lit} reduced={reduced} />
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </motion.section>
 
-          {/* (c) Steps checklist */}
-          <motion.div variants={enterUp}>
-            <GlassPanel title="Steps" className="flex h-full flex-col">
-              <ul className="space-y-1">
-                {PIPELINE.map((step, i) => {
-                  const state = steps[i] as StepState;
-                  const status = STATUS_COPY[state];
-                  return (
-                    <li
-                      key={step.id}
-                      className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2/60"
-                    >
-                      <StepIcon state={state} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                        {step.label}
-                      </span>
-                      <span className={cn('shrink-0 text-xs', status.className)}>
-                        {status.label}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="mt-auto border-t border-line/50 pt-3">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                  Estimated completion
-                </p>
-                <p className="mt-1 font-mono text-xs text-ink" aria-live="polite">
+            {/* Steps checklist */}
+            <motion.section variants={enterUp} aria-label="Generation steps">
+              <div className="glass">
+                <h4>Steps</h4>
+                <ul>
+                  {PIPELINE.map((step, i) => {
+                    const state = steps[i] as StepState;
+                    const status = STATUS_COPY[state];
+                    return (
+                      <li key={step.id} className="step">
+                        <span aria-hidden="true" className={dotClass(state)} />
+                        <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                          {step.label}
+                        </span>
+                        <span className={cn('shrink-0 text-xs', status.className)}>
+                          {status.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div
+                  className="bar g mt-3"
+                  role="progressbar"
+                  aria-label="Generation progress"
+                  aria-valuenow={progressPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <i style={{ width: `${progressPct}%` }} />
+                </div>
+                <p className="mono mut mt-2 text-[11px]" aria-live="polite">
                   {phase === 'generating'
                     ? `Elapsed ${formatSeconds(elapsedMs)} · ~${etaSeconds.toFixed(0)}s left (typical)`
                     : phase === 'done' && finishedMs !== null
                       ? `Completed in ${formatSeconds(finishedMs)}`
                       : phase === 'error' && finishedMs !== null
                         ? `Stopped after ${formatSeconds(finishedMs)}`
-                        : 'Press Generate to begin'}
+                        : 'Press Generate World to begin'}
                 </p>
               </div>
-            </GlassPanel>
-          </motion.div>
-        </div>
-      </motion.div>
+            </motion.section>
+          </div>
+        </motion.div>
+      </div>
     </AppShell>
   );
 }

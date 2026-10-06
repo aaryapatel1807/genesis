@@ -98,7 +98,7 @@ function LandingChrome({ title, children }: { title: string; children: React.Rea
       <header className="sticky top-0 z-40 border-b border-line/60 bg-void/70 backdrop-blur-xl">
         <nav
           aria-label={title}
-          className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6"
+          className="mx-auto flex w-full items-center justify-between gap-4 px-5 py-[22px] sm:px-12"
         >
           <Link
             href="/"
@@ -109,14 +109,14 @@ function LandingChrome({ title, children }: { title: string; children: React.Rea
               aria-hidden="true"
               className="h-2 w-2 rounded-full bg-teal shadow-[0_0_10px_var(--teal)]"
             />
-            <span className="text-sm font-bold tracking-[0.32em] text-ink">GENESIS</span>
+            <span className="text-sm font-medium tracking-[0.2em] text-ink">GENESIS</span>
           </Link>
-          <ul className="hidden items-center gap-1 sm:flex">
+          <ul className="hidden items-center gap-7 sm:flex">
             {LANDING_NAV.map((l) => (
               <li key={l.label}>
                 <Link
                   href={l.href}
-                  className="rounded-lg px-3.5 py-2 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                  className="text-sm text-muted transition-colors hover:text-ink"
                 >
                   {l.label}
                 </Link>
@@ -182,13 +182,13 @@ function RailLinkItem({ link, active }: { link: RailLink; active: boolean }) {
         aria-label={link.label}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'flex h-11 w-11 items-center justify-center rounded-xl border transition-colors',
+          'flex h-[42px] w-[42px] items-center justify-center rounded-xl transition-colors',
           active
-            ? 'border-line bg-surface-2 text-gold shadow-[0_0_16px_rgba(245,185,66,0.15)]'
-            : 'border-transparent text-muted hover:border-line hover:bg-surface-2 hover:text-ink',
+            ? 'bg-teal/10 text-teal'
+            : 'text-muted hover:bg-teal/10 hover:text-teal',
         )}
       >
-        <Icon size={19} aria-hidden="true" strokeWidth={active ? 2.2 : 1.8} />
+        <Icon size={20} aria-hidden="true" strokeWidth={1.5} />
       </Link>
     </Tooltip>
   );
@@ -229,7 +229,7 @@ function AppChrome({ title, children }: { title: string; children: React.ReactNo
               <span aria-hidden="true" className="shrink-0 text-muted/50">
                 /
               </span>
-              <span aria-current="page" className="truncate font-medium text-ink">
+              <span aria-current="page" className="truncate text-[30px] font-medium text-ink">
                 {title}
               </span>
             </nav>
@@ -239,7 +239,7 @@ function AppChrome({ title, children }: { title: string; children: React.ReactNo
                 disabled
                 aria-label="Search (decorative)"
                 placeholder="Search the universe…"
-                className="hidden w-56 rounded-xl border border-line bg-surface/60 px-3.5 py-2 text-sm text-muted placeholder:text-muted/60 backdrop-blur-md lg:block"
+                className="hidden w-[340px] rounded-full border border-line bg-white/5 px-5 py-3 text-sm text-muted placeholder:text-muted/60 backdrop-blur-md lg:block"
               />
               <Button
                 variant="ghost"

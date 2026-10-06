@@ -6,12 +6,16 @@ const config: Config = {
     extend: {
       colors: {
         void: 'var(--void)',
+        bg: 'var(--bg)',
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
         ink: 'var(--ink)',
+        cream: 'var(--cream)',
         muted: 'var(--muted)',
+        mut: 'var(--mut)',
         line: 'var(--line)',
         gold: 'var(--gold)',
+        amber: 'var(--amber)',
         teal: 'var(--teal)',
         red: 'var(--red)',
         'n-company': 'var(--n-company)',
@@ -30,8 +34,8 @@ const config: Config = {
         'n-law': 'var(--n-law)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'monospace'],
       },
     },
   },

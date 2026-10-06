@@ -8,7 +8,6 @@ import { useWorldStore } from '@/stores/useWorldStore';
 import { useMotionVariants } from '@/lib/motion';
 import { cn } from '@/lib/cn';
 import { AppShell } from '@/components/layout/AppShell';
-import { GlassPanel } from '@/components/dash/GlassPanel';
 import { StatPanel } from '@/components/dash/StatPanel';
 import { TimeSlider } from '@/components/TimeSlider';
 import type { GNode, NodeType, World } from '@/lib/types';
@@ -38,7 +37,6 @@ const TYPE_DOT: Record<NodeType, string> = {
 interface TimelineEvent {
   year: number;
   node: GNode;
-  firstOfYear: boolean;
 }
 
 async function fetchSnapshot(year: number): Promise<World> {
@@ -98,12 +96,17 @@ export default function TimelinePage() {
         .filter((n) => n.first_seen.startsWith(String(year)))
         .sort((a, b) => b.influence - a.influence)
         .slice(0, 5);
-      yearNodes.forEach((node, i) => {
-        out.push({ year, node, firstOfYear: i === 0 });
+      yearNodes.forEach((node) => {
+        out.push({ year, node });
       });
     }
     return out;
   }, [snapshots]);
+
+  const eventsByYear = useMemo(
+    () => YEARS.map((year) => ({ year, items: events.filter((e) => e.year === year) })),
+    [events],
+  );
 
   const readout = useMemo(() => {
     const world = snapshots[travelYear];
@@ -180,26 +183,78 @@ export default function TimelinePage() {
           variants={container}
           initial="hidden"
           animate="show"
-          className="flex flex-1 flex-col gap-3 p-3 sm:p-4"
+          className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10 pt-6"
         >
-          {/* Timeline track */}
-          <motion.section variants={enterUp} aria-label="Ecosystem timeline" className="min-h-0">
-            <GlassPanel
-              title="Temporal Events & Milestones"
-              action={
-                <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
+          <motion.header variants={enterUp}>
+            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+              Timeline Explorer
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              Temporal events and milestones across the world snapshots
+            </p>
+          </motion.header>
+
+          {/* Timeline track with year markers */}
+          <motion.section variants={enterUp} aria-label="Ecosystem timeline" className="mt-6">
+            <div className="glass">
+              <h4>
+                Temporal events &amp; milestones
+                <span className="mono flex items-center gap-1.5 text-[11px] text-muted">
                   <Hourglass size={12} aria-hidden="true" className="text-gold" />
                   {events.length} events
                 </span>
-              }
-              className="min-h-0"
-            >
+              </h4>
               {loading ? (
-                <div className="grid h-64 place-items-center">
+                <div className="grid h-40 place-items-center">
                   <p className="flex items-center gap-2 text-sm text-muted">
                     <Loader2 size={14} aria-hidden="true" className="animate-spin text-gold" />
                     Assembling the timeline…
                   </p>
+                </div>
+              ) : (
+                <div
+                  role="group"
+                  aria-label="Time travel controls — select a year marker, or use left and right arrow keys to change year"
+                  tabIndex={0}
+                  onKeyDown={handleTravelKey}
+                  className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                >
+                  <div className="track" aria-hidden="false">
+                    {YEARS.map((y, i) => {
+                      const active = travelYear === y;
+                      return (
+                        <button
+                          key={y}
+                          type="button"
+                          onClick={() => selectYear(y)}
+                          aria-pressed={active}
+                          aria-label={`Travel to ${y}`}
+                          className={cn('mk', active && 'on')}
+                          style={{ left: `${(i / (YEARS.length - 1)) * 100}%` }}
+                        >
+                          <span>{y}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2">
+                    <TimeSlider year={travelYear} onChange={selectYear} />
+                  </div>
+                </div>
+              )}
+              <p className="mono mut mt-2 text-[11px]">
+                Scrub the year — or use the arrow keys — to inspect each snapshot of the
+                ecosystem.
+              </p>
+            </div>
+          </motion.section>
+
+          {/* Events + era statistics */}
+          <div className="cols c2 mt-5">
+            <motion.section variants={enterUp} aria-label="Events by year">
+              {loading ? (
+                <div className="grid h-64 place-items-center">
+                  <p className="text-sm text-muted">Loading events…</p>
                 </div>
               ) : events.length === 0 ? (
                 <div className="grid h-64 place-items-center">
@@ -209,122 +264,87 @@ export default function TimelinePage() {
                   />
                 </div>
               ) : (
-                <div className="overflow-x-auto pb-2" role="region" aria-label="Scrollable timeline" tabIndex={0}>
-                  <div className="relative min-w-[1024px] px-6">
-                    {/* The line */}
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-x-6 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-gold/50 to-transparent"
-                    />
-                    <ol
-                      aria-label="Timeline events"
-                      className="relative grid"
-                      style={{ gridTemplateColumns: `repeat(${events.length}, minmax(0, 1fr))` }}
-                    >
-                      {events.map((ev, i) => (
-                        <motion.li
-                          key={`${ev.year}-${ev.node.id}`}
-                          variants={enterUp}
-                          className="grid grid-rows-[1fr_auto_1fr] px-2"
-                          style={{ minHeight: 380 }}
-                        >
-                          {/* Card above the line */}
-                          <div className="flex items-end pb-7">
-                            {i % 2 === 0 && (
-                              <EventCard
-                                event={ev}
-                                onOpen={() => router.push(`/entity/${ev.node.id}`)}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {eventsByYear.map(({ year, items }) => (
+                    <section key={year} aria-label={`${year} events`}>
+                      <p className="mono amber text-sm font-semibold">
+                        {year} <span className="mut font-normal">· {items.length} events</span>
+                      </p>
+                      <div className="mt-2 space-y-3">
+                        {items.map((ev) => (
+                          <button
+                            key={ev.node.id}
+                            type="button"
+                            onClick={() => router.push(`/entity/${ev.node.id}`)}
+                            aria-label={`${ev.node.name}, ${ev.node.type}, ${year} — open entity`}
+                            className="glass w-full text-left transition-transform hover:-translate-y-0.5"
+                            style={{ padding: '14px 16px' }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[ev.node.type])}
                               />
-                            )}
-                          </div>
-                          {/* Marker on the line */}
-                          <div className="flex items-center justify-center gap-2 py-1">
-                            <span
-                              aria-hidden="true"
-                              className={cn(
-                                'h-3 w-3 shrink-0 rounded-full shadow-[0_0_14px_var(--gold)]',
-                                TYPE_DOT[ev.node.type],
-                              )}
-                            />
-                            {ev.firstOfYear && (
-                              <span className="font-mono text-[11px] font-semibold text-gold">
-                                {ev.year}
-                              </span>
-                            )}
-                          </div>
-                          {/* Card below the line */}
-                          <div className="flex items-start pt-7">
-                            {i % 2 !== 0 && (
-                              <EventCard
-                                event={ev}
-                                onOpen={() => router.push(`/entity/${ev.node.id}`)}
-                              />
-                            )}
-                          </div>
-                        </motion.li>
-                      ))}
-                    </ol>
-                  </div>
+                              <span className="mono amber text-[11px]">{year}</span>
+                              <span className="mono mut text-[11px]">{ev.node.type}</span>
+                            </span>
+                            <span className="mt-1 block text-[13px] font-semibold text-ink">
+                              {ev.node.name}
+                            </span>
+                            <span className="mt-1 line-clamp-2 block text-[12px] leading-snug text-muted">
+                              {ev.node.description}
+                            </span>
+                          </button>
+                        ))}
+                        {items.length === 0 ? (
+                          <p className="mut text-[12px]">No dated entities.</p>
+                        ) : null}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               )}
-            </GlassPanel>
-          </motion.section>
+            </motion.section>
 
-          {/* Time travel + readout */}
-          <motion.section
-            variants={enterUp}
-            aria-label="Time travel"
-            className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]"
-          >
-            <GlassPanel title="Time Travel" className="min-h-0">
-              <div
-                role="group"
-                aria-label="Time travel controls — use left and right arrow keys to change year"
-                tabIndex={0}
-                onKeyDown={handleTravelKey}
-                className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-              >
-                <TimeSlider year={travelYear} onChange={selectYear} />
-              </div>
-              <p className="mt-2 font-mono text-[11px] text-muted">
-                Scrub the year — or use ← → keys — to inspect each snapshot of the ecosystem.
-              </p>
-            </GlassPanel>
-
-            <div className="flex min-h-0 flex-col gap-3">
-              <StatPanel
-                title={`Readout · ${travelYear}`}
-                stats={readout?.stats ?? []}
-                footer={readout ? `${readout.top.length} top entities shown` : undefined}
-              />
-              <GlassPanel title="Top Entities" className="min-h-0 flex-1">
-                <ul className="flex flex-col gap-1">
-                  {(readout?.top ?? []).map((node) => (
-                    <li key={node.id}>
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/entity/${node.id}`)}
-                        className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[node.type])}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium text-ink group-hover:text-gold">
-                            {node.name}
+            <div className="stack">
+              <motion.section variants={enterUp} aria-label="Era statistics">
+                <StatPanel
+                  title={`Era statistics · ${travelYear}`}
+                  stats={readout?.stats ?? []}
+                  footer={readout ? 'Real per-snapshot counts' : undefined}
+                />
+              </motion.section>
+              <motion.section variants={enterUp} aria-label="Top entities">
+                <div className="glass">
+                  <h4>Top entities</h4>
+                  <ul className="flex flex-col gap-1">
+                    {(readout?.top ?? []).map((node) => (
+                      <li key={node.id}>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/entity/${node.id}`)}
+                          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[node.type])}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-medium text-ink group-hover:text-gold">
+                              {node.name}
+                            </span>
+                            <span className="block text-[11px] text-muted">
+                              {node.type} · influence {node.influence}
+                            </span>
                           </span>
-                          <span className="block text-[11px] text-muted">
-                            {node.type} · influence {node.influence}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </GlassPanel>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.section>
             </div>
-          </motion.section>
+          </div>
         </motion.div>
 
         {/* Load error */}
@@ -351,38 +371,5 @@ export default function TimelinePage() {
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function EventCard({
-  event,
-  onOpen,
-}: {
-  event: TimelineEvent;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${event.node.name}, ${event.node.type}, ${event.year} — open entity`}
-      className="group w-full rounded-xl border border-line bg-surface-2/60 p-3 text-left backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-    >
-      <span className="flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[event.node.type])}
-        />
-        <span className="truncate text-[13px] font-semibold text-ink group-hover:text-gold">
-          {event.node.name}
-        </span>
-      </span>
-      <span className="mt-1.5 block font-mono text-[11px] text-muted">
-        {event.node.type} · {event.year}
-      </span>
-      <span className="mt-1.5 line-clamp-2 block text-[12px] leading-snug text-muted">
-        {event.node.description}
-      </span>
-    </button>
   );
 }

@@ -4,15 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Bot,
-  CheckCircle2,
-  Coins,
-  Gauge,
   Pause,
   Play,
   RotateCcw,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
-import { GlassPanel } from '@/components/dash/GlassPanel';
 import { Button } from '@/components/ui/button';
 import { useMotionVariants } from '@/lib/motion';
 import { cn } from '@/lib/cn';
@@ -148,27 +144,13 @@ interface QueueRow {
   pct: number;
 }
 
-function QueueBar({ row }: { row: QueueRow }): React.JSX.Element {
-  const pct = Math.max(0, Math.min(100, Math.round(row.pct)));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[12px] text-ink">{row.name}</span>
-        <span className="shrink-0 font-mono text-[11px] text-teal">{pct}%</span>
-      </div>
-      <div
-        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line"
-        role="progressbar"
-        aria-label={row.name}
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div className="h-full rounded-full bg-teal" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="mt-1 font-mono text-[10px] text-muted">{row.detail}</p>
-    </div>
-  );
+interface MetricRow {
+  label: string;
+  value: string;
+  note: string;
+  /** Bar width 0–100; estimates scale against world size, measured is exact. */
+  pct: number;
+  estimated: boolean;
 }
 
 /* Page ---------------------------------------------------------------------- */
@@ -180,6 +162,7 @@ export default function ConsolePage(): React.JSX.Element {
   const [worldError, setWorldError] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState<string>('planner');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -257,7 +240,7 @@ export default function ConsolePage(): React.JSX.Element {
     ];
   }, [world]);
 
-  const metrics = useMemo(() => {
+  const metrics: MetricRow[] = useMemo(() => {
     if (!world) return [];
     const { meta, nodes } = world;
     const measured = nodes.length
@@ -267,26 +250,30 @@ export default function ConsolePage(): React.JSX.Element {
       : 0;
     return [
       {
-        icon: Coins,
         label: 'Tokens',
         value: `${((meta.source_count * 850) / 1000).toFixed(1)}k`,
         note: 'estimate',
+        pct: Math.min(100, meta.source_count),
+        estimated: true,
       },
       {
-        icon: Gauge,
         label: 'Latency',
         value: `${Math.round(meta.edge_count * 2.4)} ms`,
         note: 'estimate',
+        pct: Math.min(100, Math.round(meta.edge_count / 2)),
+        estimated: true,
       },
       {
-        icon: CheckCircle2,
         label: 'Success',
         value: `${measured}%`,
         note: 'measured',
+        pct: measured,
+        estimated: false,
       },
     ];
   }, [world]);
 
+  const selected = AGENTS.find((a) => a.id === selectedAgent) ?? AGENTS[0];
   const done = world !== null && cursor >= script.length;
 
   return (
@@ -310,126 +297,83 @@ export default function ConsolePage(): React.JSX.Element {
           variants={container}
           initial="hidden"
           animate="show"
-          className="mt-6 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]"
+          className="cols c3 mt-6"
         >
           {/* (a) Agents --------------------------------------------------- */}
           <motion.section variants={enterUp} aria-label="Agents">
-            <GlassPanel title="Agents" className="h-full">
-              <ul className="space-y-1">
-                {AGENTS.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        aria-hidden="true"
+            <div className="glass h-full">
+              <h4>Agents</h4>
+              <ul className="space-y-1.5" role="listbox" aria-label="Select an agent">
+                {AGENTS.map((a) => {
+                  const on = a.id === selectedAgent;
+                  return (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={on}
+                        onClick={() => setSelectedAgent(a.id)}
                         className={cn(
-                          'h-2 w-2 shrink-0 rounded-full',
-                          a.status === 'active' ? 'bg-teal' : 'bg-muted/50',
-                        )}
-                        style={
-                          a.status === 'active'
-                            ? { boxShadow: '0 0 8px var(--teal)' }
-                            : undefined
-                        }
-                      />
-                      <span className="text-[13px] font-medium text-ink">{a.name}</span>
-                      <span
-                        className={cn(
-                          'ml-auto font-mono text-[10px] uppercase tracking-[0.14em]',
-                          a.status === 'active' ? 'text-teal' : 'text-muted',
+                          'ghost flex w-full items-center justify-between gap-2 text-left',
+                          on && 'on',
                         )}
                       >
-                        {a.status}
-                      </span>
-                      <span className="sr-only">
-                        {a.name} is {a.status}
-                      </span>
-                    </div>
-                    <p className="mt-1 pl-[18px] text-[11px] leading-relaxed text-muted">
-                      {a.role}
-                    </p>
-                    <div
-                      className="ml-[18px] mt-1.5 h-1 overflow-hidden rounded-full bg-line"
-                      role="progressbar"
-                      aria-label={`${a.name} progress`}
-                      aria-valuenow={a.pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className={cn(
-                          'h-full rounded-full',
-                          a.status === 'active' ? 'bg-teal' : 'bg-muted/60',
-                        )}
-                        style={{ width: `${a.pct}%` }}
-                      />
-                    </div>
-                  </li>
-                ))}
+                        <span className="text-[13px] font-medium">{a.name}</span>
+                        <span className="mono text-[10px] uppercase tracking-[0.14em]">
+                          {a.status} · {a.pct}%
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
-            </GlassPanel>
+              <p className="mut mt-3 border-t border-line pt-3 text-[12px] leading-relaxed" aria-live="polite">
+                <span className="teal font-medium">{selected.name}</span>
+                {' — '}
+                {selected.role}
+              </p>
+            </div>
           </motion.section>
 
           {/* (b) Live reasoning log --------------------------------------- */}
           <motion.section variants={enterUp} aria-label="Live reasoning log">
-            <GlassPanel
-              title="Live Reasoning Log"
-              className="h-full"
-              action={
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setPlaying((p) => !p)}
-                    icon={
-                      playing ? (
-                        <Pause size={13} aria-hidden="true" />
-                      ) : (
-                        <Play size={13} aria-hidden="true" />
-                      )
-                    }
-                    aria-label={playing ? 'Pause log stream' : 'Resume log stream'}
-                  >
-                    {playing ? 'Pause' : 'Play'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={replay}
-                    icon={<RotateCcw size={13} aria-hidden="true" />}
-                    aria-label="Replay log from the start"
-                  >
-                    Replay
-                  </Button>
-                </div>
-              }
-            >
+            <div className="glass h-full">
+              <h4>
+                Live reasoning log
+                <span className="flex items-center gap-2">
+                  <span className="tag font-mono uppercase tracking-[0.16em]">
+                    {done ? 'Complete' : playing ? 'Live' : 'Paused'}
+                  </span>
+                  <span className="mono mut text-[10px]">
+                    {lines.length} / {script.length} steps
+                  </span>
+                </span>
+              </h4>
               <div className="mb-3 flex items-center gap-2">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em]',
-                    playing && !done
-                      ? 'border-teal/50 text-teal'
-                      : 'border-line text-muted',
-                  )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPlaying((p) => !p)}
+                  icon={
+                    playing ? (
+                      <Pause size={13} aria-hidden="true" />
+                    ) : (
+                      <Play size={13} aria-hidden="true" />
+                    )
+                  }
+                  aria-label={playing ? 'Pause log stream' : 'Resume log stream'}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full',
-                      playing && !done ? 'bg-teal' : 'bg-muted/60',
-                    )}
-                    style={
-                      playing && !done ? { boxShadow: '0 0 8px var(--teal)' } : undefined
-                    }
-                  />
-                  {done ? 'Complete' : playing ? 'Live' : 'Paused'}
-                </span>
-                <span className="font-mono text-[10px] text-muted">
-                  {lines.length} / {script.length} steps
-                </span>
+                  {playing ? 'Pause' : 'Play'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={replay}
+                  icon={<RotateCcw size={13} aria-hidden="true" />}
+                  aria-label="Replay log from the start"
+                >
+                  Replay
+                </Button>
               </div>
 
               <div
@@ -437,7 +381,7 @@ export default function ConsolePage(): React.JSX.Element {
                 role="log"
                 aria-label="Pipeline reasoning log"
                 aria-live="off"
-                className="h-[420px] overflow-y-auto rounded-xl border border-line bg-void/60 p-3"
+                className="log mono rounded-xl border border-line bg-void/60 p-3"
               >
                 {worldError ? (
                   <p className="py-16 text-center text-[13px] text-muted">
@@ -455,11 +399,12 @@ export default function ConsolePage(): React.JSX.Element {
                         variants={enter}
                         initial="hidden"
                         animate="show"
-                        className="font-mono text-[11.5px] leading-relaxed"
                       >
-                        <span className="text-muted/70">{l.time}</span>{' '}
-                        <span className="text-teal">{l.agent}</span>{' '}
-                        <span className="text-ink/80">· {l.text}</span>
+                        <b>{l.time}</b>{' '}
+                        <span className={l.agent === selectedAgent ? 'amber' : 'teal'}>
+                          {l.agent}
+                        </span>{' '}
+                        <span>· {l.text}</span>
                       </motion.p>
                     ))}
                     {playing && !done ? (
@@ -473,64 +418,75 @@ export default function ConsolePage(): React.JSX.Element {
                   </div>
                 )}
               </div>
-            </GlassPanel>
+            </div>
           </motion.section>
 
           {/* (c) Queues + metrics ---------------------------------------- */}
           <motion.section variants={enterUp} aria-label="Task queues and metrics">
-            <div className="space-y-4">
-              <GlassPanel title="Task Queues">
+            <div className="stack">
+              <div className="glass">
+                <h4>Task queues</h4>
                 {queues.length === 0 ? (
                   <p className="py-8 text-center text-[13px] text-muted">
                     Loading queue state…
                   </p>
                 ) : (
-                  <div className="space-y-4">
+                  <div>
                     {queues.map((q) => (
-                      <QueueBar key={q.name} row={q} />
+                      <div key={q.name} className="row">
+                        <div className="min-w-0">
+                          <p className="text-[13px] text-ink">{q.name}</p>
+                          <p className="mono mut text-[10px]">{q.detail}</p>
+                        </div>
+                        <span className="mono teal shrink-0 text-[12px]">
+                          {Math.round(q.pct)}%
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}
-              </GlassPanel>
+              </div>
 
-              <GlassPanel title="Metrics">
+              <div className="glass">
+                <h4>Metrics</h4>
                 {metrics.length === 0 ? (
                   <p className="py-8 text-center text-[13px] text-muted">
                     Loading metrics…
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {metrics.map((m) => {
-                      const Icon = m.icon;
-                      return (
-                        <div
-                          key={m.label}
-                          className="flex items-center gap-3 rounded-xl border border-line bg-surface-2/60 px-3 py-2.5"
-                        >
-                          <Icon
-                            size={16}
-                            aria-hidden="true"
-                            className="shrink-0 text-gold"
-                          />
-                          <div className="min-w-0">
-                            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
-                              {m.label}
-                            </p>
-                            <p className="text-lg font-semibold text-ink">{m.value}</p>
-                          </div>
-                          <span className="ml-auto shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
-                            {m.note}
+                  <div className="space-y-4">
+                    {metrics.map((m) => (
+                      <div key={m.label}>
+                        <div className="row">
+                          <span className="text-[13px] text-ink">
+                            {m.label}{' '}
+                            <span className="tag ml-1 font-mono uppercase tracking-[0.12em]">
+                              {m.note}
+                            </span>
+                          </span>
+                          <span className="mono shrink-0 text-[13px] text-ink">
+                            {m.value}
                           </span>
                         </div>
-                      );
-                    })}
-                    <p className="text-[11px] leading-relaxed text-muted">
+                        <div
+                          className={cn('bar mt-1.5', m.estimated && 'g')}
+                          role="progressbar"
+                          aria-label={`${m.label} ${m.note}`}
+                          aria-valuenow={Math.round(m.pct)}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <i style={{ width: `${Math.round(m.pct)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    <p className="mut text-[11px] leading-relaxed">
                       Token and latency figures are estimates derived from world
                       meta — not measured.
                     </p>
                   </div>
                 )}
-              </GlassPanel>
+              </div>
             </div>
           </motion.section>
         </motion.div>

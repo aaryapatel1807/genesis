@@ -18,17 +18,17 @@ type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
-    'bg-gold text-void shadow-[0_0_24px_rgba(245,185,66,0.35)] hover:shadow-[0_0_32px_rgba(245,185,66,0.5)]',
+    'bg-[linear-gradient(180deg,var(--gold-hi),var(--gold-lo))] text-[var(--gold-ink)] shadow-[0_0_40px_rgba(245,185,74,0.35)] hover:shadow-[0_0_52px_rgba(245,185,74,0.5)]',
   secondary:
-    'border border-line bg-surface/80 text-ink backdrop-blur-md hover:border-gold/60 hover:text-gold',
-  ghost: 'text-muted hover:bg-surface-2 hover:text-ink',
+    'border border-line bg-white/5 text-ink backdrop-blur-md hover:border-teal/50 hover:text-teal',
+  ghost: 'text-muted hover:bg-teal/10 hover:text-teal',
   danger: 'bg-red/15 text-red border border-red/40 hover:bg-red/25',
 };
 
 const SIZE_STYLES: Record<ButtonSize, string> = {
-  sm: 'rounded-lg px-3 py-1.5 text-[12px]',
-  md: 'rounded-xl px-4 py-2.5 text-[14px]',
-  lg: 'rounded-xl px-10 py-4 text-lg',
+  sm: 'rounded-full px-4 py-1.5 text-[12px]',
+  md: 'rounded-full px-5 py-2.5 text-[14px]',
+  lg: 'rounded-full px-10 py-4 text-lg',
   icon: 'rounded-full p-2',
 };
 

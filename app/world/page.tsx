@@ -15,6 +15,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { GlassPanel } from '@/components/dash/GlassPanel';
 import { StatPanel } from '@/components/dash/StatPanel';
 import { AgentPanel } from '@/components/dash/AgentPanel';
+import { Button } from '@/components/ui/button';
 import type {
   UniverseGraphHandle,
   UniverseGraphProps,
@@ -290,6 +291,7 @@ function WorldView() {
     () => new Map<string, GNode>(world?.nodes.map((n) => [n.id, n]) ?? []),
     [world],
   );
+
   const edgeIds = useMemo(
     () => new Set<string>(world?.edges.map((e) => e.id) ?? []),
     [world],
@@ -386,6 +388,9 @@ function WorldView() {
     ],
     [world],
   );
+
+  /** Flattened agent roster for the single "Active AI Agents" panel. */
+  const allAgents = useMemo(() => agentGroups.flat(), [agentGroups]);
 
   // Esc: close panels first, then reset the simulation.
   useEffect(() => {
@@ -554,7 +559,7 @@ function WorldView() {
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid flex-1 grid-cols-1 gap-3 p-3 sm:p-4 xl:grid-cols-[264px_minmax(0,1fr)_264px]"
+          className="cols c3 flex-1 p-3 sm:p-4"
         >
           {/* Left column — statistics + active entities */}
           <motion.aside
@@ -600,8 +605,10 @@ function WorldView() {
             <div className="flex flex-wrap items-center gap-2">
               <CreditPill used={credits.used} total={credits.total} />
               <SerendipityButton onSurprise={handleSurprise} disabled={!world} />
-              <button
-                type="button"
+              <Button
+                variant={simOpen ? 'primary' : 'secondary'}
+                size="sm"
+                icon={<Zap size={16} aria-hidden="true" />}
                 aria-expanded={simOpen}
                 onClick={() => {
                   setSimOpen((open) => {
@@ -609,19 +616,37 @@ function WorldView() {
                     return !open;
                   });
                 }}
-                className={cn(
-                  'flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium backdrop-blur-md transition-all hover:scale-[1.03] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70',
-                  simOpen
-                    ? 'border-gold/60 bg-gold/15 text-gold'
-                    : 'border-line bg-surface/80 text-ink hover:border-gold/60 hover:text-gold',
-                )}
               >
-                <Zap size={16} aria-hidden="true" />
                 Simulate
-              </button>
+              </Button>
             </div>
 
-            <div className="relative h-[62vh] min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-line bg-void/60 shadow-[0_0_80px_rgba(45,212,191,0.06)]">
+            {/* Filter search pill */}
+            <div role="search" className="search">
+              <Search size={15} aria-hidden="true" className="shrink-0" />
+              <label htmlFor="world-filter" className="sr-only">
+                Filter entities by name or type
+              </label>
+              <input
+                id="world-filter"
+                type="search"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter: sector=climate, year=2024…"
+              />
+              {filter !== '' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Clear filter"
+                  onClick={() => setFilter('')}
+                >
+                  <X size={14} aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+
+            <div className="glass relative h-[62vh] min-h-[420px] flex-1 overflow-hidden !p-0">
               {world && (
                 <UniverseGraph
                   ref={graphHandleRef}
@@ -649,34 +674,6 @@ function WorldView() {
               )}
             </div>
 
-            {/* Filter search bar */}
-            <div
-              role="search"
-              className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-2 pl-4 pr-2 backdrop-blur-md transition-colors focus-within:border-gold/60"
-            >
-              <Search size={15} aria-hidden="true" className="shrink-0 text-muted" />
-              <label htmlFor="world-filter" className="sr-only">
-                Filter entities by name or type
-              </label>
-              <input
-                id="world-filter"
-                type="search"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter: sector=climate, year=2024…"
-                className="w-full bg-transparent font-mono text-[12px] text-ink placeholder:text-muted/60 focus:outline-none"
-              />
-              {filter !== '' && (
-                <button
-                  type="button"
-                  aria-label="Clear filter"
-                  onClick={() => setFilter('')}
-                  className="rounded-full p-1 text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-                >
-                  <X size={14} aria-hidden="true" />
-                </button>
-              )}
-            </div>
           </motion.section>
 
           {/* Right column — pipeline agents */}
@@ -685,14 +682,16 @@ function WorldView() {
             aria-label="Active AI agents"
             className="flex min-h-0 flex-col gap-3"
           >
-            {agentGroups.map((agents, i) => (
-              <AgentPanel
-                key={i}
-                title="Active AI Agents"
-                agents={agents}
-                className="min-h-0 flex-1"
-              />
-            ))}
+            <AgentPanel
+              title="Active AI Agents"
+              action={
+                <span className="tag" aria-label={`${allAgents.length} agents running`}>
+                  {allAgents.length} running
+                </span>
+              }
+              agents={allAgents}
+              className="min-h-0 flex-1"
+            />
           </motion.aside>
         </motion.div>
 
@@ -766,19 +765,20 @@ function WorldView() {
         {/* Load error */}
         {loadError && !world && !loading && (
           <div className="absolute inset-0 z-40 grid place-items-center bg-void/80">
-            <div className="w-full max-w-sm rounded-[14px] border border-line bg-surface p-6 text-center">
+            <div className="glass w-full max-w-sm text-center">
               <p className="text-[15px] font-semibold">The universe is offline</p>
               <p className="mt-2 text-[13px] text-muted">{loadError}</p>
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                className="mt-4"
                 onClick={() => {
                   reqRef.current += 1;
                   void loadYear(year, reqRef.current);
                 }}
-                className="mt-4 rounded-xl bg-gold px-6 py-2.5 text-[14px] font-semibold text-void transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
               >
                 Retry
-              </button>
+              </Button>
             </div>
           </div>
         )}

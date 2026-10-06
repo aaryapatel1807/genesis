@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains-mono',
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     description:
       'A living knowledge universe of the AI ecosystem. Every connection backed by evidence.',
   },
-  themeColor: '#05070c',
+  themeColor: '#04080a',
   robots: { index: true, follow: true },
 };
 
@@ -37,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} bg-void text-ink font-sans antialiased`}
+        className={`${sans.variable} ${jetbrainsMono.variable} bg-void text-ink font-sans antialiased`}
       >
         {children}
       </body>

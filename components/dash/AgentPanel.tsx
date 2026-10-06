@@ -11,29 +11,29 @@ export interface AgentItem {
 interface AgentPanelProps {
   title: string;
   agents: AgentItem[];
+  /** Optional node at the top-right of the panel header (e.g. a .tag). */
+  action?: React.ReactNode;
   className?: string;
 }
 
-const HAIRLINES = ['bg-teal', 'bg-gold'] as const;
-
 /**
- * AgentPanel — the "Active AI Agents" panel from the reference grid:
- * icon dot, name, detail, and a thin gold/teal progress hairline per row.
+ * AgentPanel — the "Active AI Agents" panel from the reference kit:
+ * icon dot, name, detail, and a thin teal/amber progress hairline per row.
  */
-export function AgentPanel({ title, agents, className }: AgentPanelProps) {
+export function AgentPanel({ title, agents, action, className }: AgentPanelProps) {
   return (
-    <GlassPanel title={title} className={className}>
+    <GlassPanel title={title} action={action} className={className}>
       <ul className="divide-y divide-line/40">
         {agents.map((a, i) => {
           const pct = Math.max(0, Math.min(100, Math.round(a.pct)));
-          const hairline = HAIRLINES[i % HAIRLINES.length] as string;
+          const barClass = i % 2 === 1 ? 'g' : '';
           return (
             <li key={a.name} className="flex items-center gap-3 py-2.5">
               <span
                 aria-hidden="true"
                 className={cn(
                   'h-2 w-2 shrink-0 rounded-full',
-                  hairline,
+                  i % 2 === 1 ? 'bg-amber' : 'bg-teal',
                   'shadow-[0_0_8px_currentColor]',
                 )}
               />
@@ -46,14 +46,14 @@ export function AgentPanel({ title, agents, className }: AgentPanelProps) {
                 </div>
                 <p className="truncate text-xs text-muted">{a.detail}</p>
                 <div
-                  className="mt-1.5 h-px w-full bg-line/60"
+                  className={cn('bar mt-1.5', barClass)}
                   role="progressbar"
                   aria-label={`${a.name} progress`}
                   aria-valuenow={pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  <div className={cn('h-px', hairline)} style={{ width: `${pct}%` }} />
+                  <i style={{ width: `${pct}%` }} />
                 </div>
               </div>
             </li>
