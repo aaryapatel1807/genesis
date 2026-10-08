@@ -517,6 +517,7 @@
 }
 
 .qa-loading-card .qa-logo-mark {
+  display: block;
   margin: 0 auto 22px;
   width: 34px;
   height: 24px;

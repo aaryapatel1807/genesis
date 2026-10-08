@@ -250,13 +250,37 @@ export function normalizeAnswer(question: string, raw: unknown, results: CleanRe
   };
 }
 
+/** Clip at a word boundary so fallback text never ends mid-word. */
+function clipAtWord(text: string, max: number): string {
+  const t = text.trim().replace(/^[.…\s]+/, '');
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  const clipped = (lastSpace > max * 0.5 ? cut.slice(0, lastSpace) : cut).trim();
+  return `${clipped}…`;
+}
+
 /** Extractive fallback when the LLM is unavailable: 3 points from top snippets. */
 function extractiveFallback(question: string, results: CleanResult[]): BuildAnswer {
   const answer: AnswerPoint[] = [];
   for (const r of results.slice(0, 3)) {
-    const firstSentence = r.snippet.split(/(?<=[.!?])\s/)[0]?.slice(0, 400) ?? '';
-    if (r.title && firstSentence) {
-      answer.push({ point: r.title.slice(0, 120), sentence: firstSentence });
+    // Accumulate whole sentences (cap ~280 chars) so the fallback reads
+    // like complete thoughts instead of trailing off mid-sentence.
+    const sentences = r.snippet
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    let sentence = '';
+    for (const s of sentences) {
+      const next = `${sentence} ${s}`.trim();
+      if (next.length > 280) break;
+      sentence = next;
+    }
+    if (!sentence && sentences.length > 0) {
+      sentence = clipAtWord(sentences[0], 280);
+    }
+    if (r.title && sentence) {
+      answer.push({ point: clipAtWord(r.title, 120), sentence });
     }
   }
   const sources: BuildSource[] = results.map((r) => ({

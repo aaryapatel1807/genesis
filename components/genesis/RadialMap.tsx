@@ -159,10 +159,7 @@ export function RadialMap({ answer, onSeeSources }: { answer: BuildAnswer; onSee
       <section className="qa-card" aria-label="See how it connects">
         <h2>See how it connects</h2>
         <div className="qa-map-empty">
-          <p>
-            The entity map appears when the AI summary is on. Your answer above is built directly
-            from the sources — open them to explore every connection yourself.
-          </p>
+          <p>The entity map appears when the AI summary is on. Your answer above is built directly from the sources — open them to explore every connection yourself.</p>
           <button type="button" className="qa-pill-btn ghost" onClick={onSeeSources}>
             See the sources
           </button>
