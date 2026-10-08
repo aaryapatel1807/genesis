@@ -1,7 +1,8 @@
 /**
  * lib/serpapi.ts — the ONLY SerpApi access point in the codebase.
  *
- * - Throws `SERPAPI_KEY_MISSING` when SERPAPI_API_KEY is unset (callers degrade).
+ * - Throws `SERPAPI_KEY_MISSING` when no SerpApi key is set (SERPAPI_API_KEY
+ *   or SERPAPI_KEY); callers degrade.
  * - Cache-first: key = sha256(`serpapi|<engine>|<query>`); hits return fresh:false.
  * - Misses go live (1/sec throttle for the free plan), are cached, and append one
  *   line to data/credit-ledger.json (best effort).
@@ -12,6 +13,14 @@ import { join } from 'node:path';
 import { cacheKey, getCache, setCache } from './cache';
 
 export type SearchEngine = 'google' | 'google_news' | 'google_scholar' | 'google_jobs';
+
+/**
+ * The SerpApi key, accepting both spellings:
+ * SERPAPI_API_KEY (this codebase's convention) and SERPAPI_KEY (the docs').
+ */
+export function serpApiKey(): string | undefined {
+  return process.env.SERPAPI_API_KEY || process.env.SERPAPI_KEY;
+}
 
 export interface SerpResult {
   title: string;
@@ -108,7 +117,7 @@ export async function search(
   engine: SearchEngine,
   query: string
 ): Promise<{ results: SerpResult[]; fresh: boolean }> {
-  const apiKey = process.env.SERPAPI_API_KEY;
+  const apiKey = serpApiKey();
   if (!apiKey) {
     throw new Error('SERPAPI_KEY_MISSING');
   }
