@@ -61,7 +61,7 @@ export async function GET(): Promise<NextResponse> {
     };
     const json = await mod.getJson({
       engine: 'google_news',
-      q: 'top world news stories',
+      q: 'world news',
       gl: 'us',
       hl: 'en',
       api_key: apiKey,
