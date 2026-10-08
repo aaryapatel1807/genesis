@@ -36,7 +36,9 @@ export async function groqJson(system: string, user: string, opts?: GroqJsonOpts
   const mod = (await import('groq-sdk')) as unknown as { default: GroqCtor };
   const client = new mod.default({ apiKey });
   const completion = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    // llama-3.3-70b-versatile was decommissioned by Groq on 2026-08-16;
+    // openai/gpt-oss-120b is Groq's recommended replacement.
+    model: 'openai/gpt-oss-120b',
     temperature: opts?.temperature ?? 0.2,
     max_tokens: opts?.maxTokens ?? 1200,
     response_format: { type: 'json_object' },
