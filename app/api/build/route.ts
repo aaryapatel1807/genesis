@@ -32,10 +32,28 @@ async function build(question: unknown): Promise<NextResponse> {
         503,
       );
     }
+    if (e instanceof Error && e.message === 'SERPAPI_KEY_INVALID') {
+      return err(
+        'The SerpApi key was rejected — check it at serpapi.com.',
+        'SEARCH_KEY_INVALID',
+        503,
+      );
+    }
     if (e instanceof Error && e.message === 'QUESTION_REQUIRED') {
       return err('question is required', 'QUESTION_REQUIRED', 400);
     }
-    return err("We couldn't build that answer — please try again.", 'BUILD_FAILED', 500);
+    // Diagnosable 500: the detail never contains secrets (the SerpApi
+    // client never echoes the key; our own errors carry none either).
+    const detail = e instanceof Error ? e.message.slice(0, 200) : undefined;
+    return NextResponse.json(
+      {
+        error: "We couldn't build that answer — please try again.",
+        code: 'BUILD_FAILED',
+        isLiveResearch: true,
+        ...(detail ? { detail } : {}),
+      },
+      { status: 500 },
+    );
   }
 }
 

@@ -128,7 +128,18 @@ export async function search(
   }
   await throttle();
   const mod = (await import('serpapi')) as unknown as SerpapiModule;
-  const json = await mod.getJson({ engine, q: query, num: 10, gl: 'us', hl: 'en', api_key: apiKey });
+  let json: Record<string, unknown>;
+  try {
+    json = await mod.getJson({ engine, q: query, num: 10, gl: 'us', hl: 'en', api_key: apiKey });
+  } catch (e) {
+    // Classify auth failures so callers can answer "is the key bad?"
+    // without leaking anything secret: the client never echoes the key.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/invalid.*api.?key|unauthori[sz]ed|\b401\b|\b403\b/i.test(msg)) {
+      throw new Error('SERPAPI_KEY_INVALID');
+    }
+    throw new Error(`SERPAPI_REQUEST_FAILED: ${msg.slice(0, 160)}`);
+  }
   const results = extractResults(json);
   await setCache(key, results);
   await appendLedger({ at: new Date().toISOString(), engine, query_hash: key, cached: false });
