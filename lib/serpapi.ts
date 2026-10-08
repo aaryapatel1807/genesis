@@ -17,6 +17,8 @@ export interface SerpResult {
   title: string;
   snippet: string;
   link: string;
+  /** Publisher name (organic `source`, news `source.name`). */
+  source?: string;
   date?: string;
 }
 
@@ -55,6 +57,8 @@ interface RawResult {
   title?: unknown;
   snippet?: unknown;
   link?: unknown;
+  /** Organic results: string. News results: { name: string }. */
+  source?: unknown;
   date?: unknown;
 }
 
@@ -63,6 +67,16 @@ function toSerpResult(r: RawResult): SerpResult {
   const snippet = typeof r.snippet === 'string' ? r.snippet : '';
   const link = typeof r.link === 'string' ? r.link : '';
   const out: SerpResult = { title, snippet, link };
+  const src = r.source;
+  const sourceName =
+    typeof src === 'string'
+      ? src
+      : typeof src === 'object' && src !== null && typeof (src as Record<string, unknown>).name === 'string'
+        ? ((src as Record<string, unknown>).name as string)
+        : '';
+  if (sourceName.length > 0) {
+    out.source = sourceName;
+  }
   if (typeof r.date === 'string' && r.date.length > 0) {
     out.date = r.date;
   }
