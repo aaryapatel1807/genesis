@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { Space_Grotesk, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+import './genesis.css';
 
 const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains-mono',
 });
+const qaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-qa-sans' });
 
 export const metadata: Metadata = {
   title: 'Genesis — Ask anything. Watch a world emerge.',
@@ -51,7 +53,7 @@ export default function RootLayout({
         dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }}
       />
       <body
-        className={`${sans.variable} ${jetbrainsMono.variable} bg-void text-ink font-sans antialiased`}
+        className={`${sans.variable} ${jetbrainsMono.variable} ${qaSans.variable} bg-void text-ink font-sans antialiased`}
       >
         {children}
       </body>
