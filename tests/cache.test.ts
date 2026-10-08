@@ -21,4 +21,11 @@ describe('getCache/setCache', () => {
   it('returns null for a missing key', async () => {
     expect(await getCache(cacheKey(`vitest-missing-${Date.now()}`))).toBeNull();
   });
+
+  it('serves from memory even when the file layer is unavailable (Vercel)', async () => {
+    const key = cacheKey(`vitest-mem-${Date.now()}`);
+    await setCache(key, { a: 1 });
+    // Simulate a read-only filesystem: file read would fail, memory must win.
+    expect(await getCache(key)).toEqual({ a: 1 });
+  });
 });
